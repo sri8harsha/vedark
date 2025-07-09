@@ -16,6 +16,6 @@ else
     git add .
     git commit -m "Auto-sync: local changes" --allow-empty
     git push origin master
-    sleep 10
+    sleep 600
   done
 fi 
