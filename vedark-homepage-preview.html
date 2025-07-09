@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VEDARK - Where Every Problem Becomes a Story</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --cosmic-purple: #6B46C1;
+            --electric-teal: #14B8A6;
+            --deep-space: #0A0A0F;
+            --stellar-gold: #FFD700;
+            --nova-pink: #FF006E;
+            --nebula-blue: #1E40AF;
+            --comet-silver: #E5E7EB;
+            --asteroid-gray: #374151;
+            --success-green: #10B981;
+            --warning-amber: #F59E0B;
+            --glass-white: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--deep-space);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--deep-space);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--cosmic-purple), var(--electric-teal));
+            border-radius: 5px;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem 2rem;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .navbar.scrolled {
+            padding: 0.75rem 2rem;
+            background: rgba(10, 10, 15, 0.95);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--cosmic-purple), var(--electric-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            inset: -10px;
+            background: radial-gradient(circle, var(--cosmic-purple) 0%, transparent 70%);
+            opacity: 0;
+            filter: blur(20px);
+            animation: glow 2s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        @keyframes glow {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.5; }
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-weight: 500;
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--electric-teal);
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--cosmic-purple), var(--electric-teal));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            transform: scaleX(1);
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-login, .btn-signup {
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .btn-login {
+            color: white;
+            background: transparent;
+            border: 2px solid var(--glass-border);
+        }
+
+        .btn-login:hover {
+            border-color: var(--electric-teal);
+            color: var(--electric-teal);
+        }
+
+        .btn-signup {
+            color: white;
+            background: linear-gradient(135deg, var(--cosmic-purple), var(--electric-teal));
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-signup::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn-signup:hover::before {
+            left: 100%;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding-top: 80px;
+        }
+
+        /* Video Background */
+        .video-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -2;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, rgba(10, 10, 15, 0.6) 0%, rgba(10, 10, 15, 0.9) 100%);
+        }
+
+        /* Floating 3D Elements */
+        .floating-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .floating-book {
+            position: absolute;
+            font-size: 3rem;
+            animation: float 6s ease-in-out infinite;
+            opacity: 0.1;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(10deg); }
+        }
+
+        /* Hero Content */
+        .hero-content {
+            text-align: center;
+            z-index: 1;
+            max-width: 900px;
+            padding: 0 2rem;
+        }
+
+        .hero-title {
+            font-size: clamp(3rem, 6vw, 5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, white, var(--electric-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 3rem;
+            animation: fadeInUp 1s ease-out 0.2s backwards;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hero-cta {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 1s ease-out 0.4s backwards;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 1.25rem 2.5rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border-radius: 50px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--cosmic-purple), var(--electric-teal));
+            color: white;
+            box-shadow: 0 10px 30px rgba(107, 70, 193, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(107, 70, 193, 0.6);
+        }
+
+        .btn-secondary {
+            background: var(--glass-white);
+            color: white;
+            border: 2px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: var(--glass-white);
+            border-color: var(--electric-teal);
+            transform: translateY(-2px);
+        }
+
+        /* Trust Badges */
+        .trust-badges {
+            display: flex;
+            gap: 3rem;
+            justify-content: center;
+            margin-top: 3rem;
+            animation: fadeInUp 1s ease-out 0.6s backwards;
+        }
+
+        .trust-badge {
+            text-align: center;
+        }
+
+        .trust-number {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--electric-teal);
+        }
+
+        .trust-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Interactive Demo Section */
+        .demo-section {
+            padding: 6rem 2rem;
+            background: linear-gradient(180deg, var(--deep-space) 0%, rgba(30, 64, 175, 0.1) 100%);
+            position: relative;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--stellar-gold), var(--nova-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--glass-white);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            padding: 3rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .demo-input-area {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .demo-input {
+            flex: 1;
+            min-width: 300px;
+            padding: 1rem 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--glass-border);
+            border-radius: 15px;
+            color: white;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+
+        .demo-input:focus {
+            outline: none;
+            border-color: var(--electric-teal);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .demo-button {
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--cosmic-purple), var(--electric-teal));
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .demo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(107, 70, 193, 0.4);
+        }
+
+        /* Before/After Slider */
+        .before-after-container {
+            position: relative;
+            max-width: 800px;
+            margin: 3rem auto;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+
+        .before-after-slider {
+            position: relative;
+            height: 400px;
+            background: var(--glass-white);
+        }
+
+        .before-side, .after-side {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .before-side {
+            left: 0;
+            width: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            border-right: 2px solid var(--electric-teal);
+        }
+
+        .after-side {
+            right: 0;
+            width: 50%;
+            background: linear-gradient(135deg, rgba(107, 70, 193, 0.1), rgba(20, 184, 166, 0.1));
+        }
+
+        /* Live Statistics */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .stat-card {
+            background: var(--glass-white);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--electric-teal);
+            box-shadow: 0 15px 40px rgba(20, 184, 166, 0.2);
+        }
+
+        .stat-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--electric-teal);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Feature Showcase */
+        .features-section {
+            padding: 6rem 2rem;
+            background: var(--deep-space);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            position: relative;
+            height: 400px;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            cursor: pointer;
+        }
+
+        .feature-card:hover {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 25px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .card-front {
+            background: linear-gradient(135deg, var(--glass-white), rgba(107, 70, 193, 0.1));
+            border: 1px solid var(--glass-border);
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, rgba(20, 184, 166, 0.2), rgba(107, 70, 193, 0.2));
+            border: 1px solid var(--electric-teal);
+            transform: rotateY(180deg);
+        }
+
+        .feature-icon-large {
+            font-size: 5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--cosmic-purple), var(--electric-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .feature-preview {
+            width: 100%;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        /* Success Metrics Dashboard */
+        .metrics-section {
+            padding: 6rem 2rem;
+            background: linear-gradient(180deg, rgba(30, 64, 175, 0.1) 0%, var(--deep-space) 100%);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .chart-container {
+            background: var(--glass-white);
+            border: 1px solid var(--glass-border);
+            border-radius: 25px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .activity-heatmap {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .heatmap-cell {
+            aspect-ratio: 1;
+            background: rgba(20, 184, 166, 0.2);
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .heatmap-cell:hover {
+            transform: scale(1.1);
+            background: var(--electric-teal);
+        }
+
+        /* Testimonials */
+        .testimonials-section {
+            padding: 6rem 2rem;
+            background: var(--deep-space);
+            overflow: hidden;
+        }
+
+        .testimonials-carousel {
+            position: relative;
+            max-width: 1200px;
+            margin: 0 auto;
+            height: 400px;
+        }
+
+        .testimonial-card {
+            position: absolute;
+            width: 350px;
+            background: var(--glass-white);
+            border: 1px solid var(--glass-border);
+            border-radius: 25px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.5s ease;
+        }
+
+        .testimonial-video {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, rgba(107, 70, 193, 0.2), rgba(20, 184, 166, 0.2));
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .play-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .testimonial-video:hover .play-button {
+            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .rating-stars {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .star {
+            color: var(--stellar-gold);
+            font-size: 1.2rem;
+        }
+
+        /* Pricing Section */
+        .pricing-section {
+            padding: 6rem 2rem;
+            background: linear-gradient(180deg, var(--deep-space) 0%, rgba(107, 70, 193, 0.1) 100%);
+        }
+
+        .pricing-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: var(--glass-white);
+            border: 2px solid var(--glass-border);
+            border-radius: 25px;
+            padding: 2.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pricing-card.featured {
+            border-color: var(--electric-teal);
+            transform: scale(1.05);
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--electric-teal);
+        }
+
+        .plan-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .plan-price {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--electric-teal);
+            margin-bottom: 1rem;
+        }
+
+        .plan-price span {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .plan-features {
+            list-style: none;
+            margin: 2rem 0;
+        }
+
+        .plan-features li {
+            padding: 0.75rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .check-icon {
+            color: var(--success-green);
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(10, 10, 15, 0.95);
+            padding: 4rem 2rem 2rem;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-section h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--electric-teal);
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            padding: 0.5rem 0;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--electric-teal);
+        }
+
+        .newsletter-form {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .newsletter-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 25px;
+            color: white;
+        }
+
+        .newsletter-button {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, var(--cosmic-purple), var(--electric-teal));
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .social-link {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            background: var(--electric-teal);
+            transform: translateY(-3px);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid var(--glass-border);
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-menu {
+                display: none;
+            }
+            
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .trust-badges {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .pricing-card.featured {
+                transform: scale(1);
+            }
+        }
+
+        /* Animations */
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+
+        .fade-in-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Loading and counting animations */
+        .counting {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <div class="logo">VEDARK</div>
+            <ul class="nav-menu">
+                <li><a href="#home" class="nav-link">Home</a></li>
+                <li><a href="#features" class="nav-link">Features</a></li>
+                <li><a href="battle-field.html" class="nav-link">Battle Field</a></li>
+                <li><a href="#pricing" class="nav-link">Pricing</a></li>
+                <li><a href="#success" class="nav-link">Success Stories</a></li>
+                <li><a href="#blog" class="nav-link">Blog</a></li>
+            </ul>
+            <div class="nav-actions">
+                <a href="#" class="btn-login">Login</a>
+                <a href="#" class="btn-signup">Sign Up Free</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="video-background">
+            <div class="video-overlay"></div>
+        </div>
+        
+        <div class="floating-elements">
+            <div class="floating-book" style="top: 10%; left: 10%;">📚</div>
+            <div class="floating-book" style="top: 20%; right: 15%; animation-delay: 1s;">🔬</div>
+            <div class="floating-book" style="bottom: 20%; left: 5%; animation-delay: 2s;">🎭</div>
+            <div class="floating-book" style="bottom: 10%; right: 10%; animation-delay: 3s;">🎨</div>
+            <div class="floating-book" style="top: 50%; left: 90%; animation-delay: 4s;">✨</div>
+        </div>
+        
+        <div class="hero-content">
+            <h1 class="hero-title">Where Every Problem Becomes a Story</h1>
+            <p class="hero-subtitle">Transform homework struggles into epic adventures with AI-powered storytelling</p>
+            <div class="hero-cta">
+                <a href="#demo" class="btn-primary">Try Live Demo</a>
+                <a href="#features" class="btn-secondary">See How It Works</a>
+            </div>
+            <div class="trust-badges">
+                <div class="trust-badge">
+                    <div class="trust-number counting" data-target="10483">0</div>
+                    <div class="trust-label">Active Students</div>
+                </div>
+                <div class="trust-badge">
+                    <div class="trust-number">4.9⭐</div>
+                    <div class="trust-label">Parent Rating</div>
+                </div>
+                <div class="trust-badge">
+                    <div class="trust-number">100%</div>
+                    <div class="trust-label">Safe & Secure</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Demo Section -->
+    <section class="demo-section" id="demo">
+        <div class="section-header">
+            <h2 class="section-title">See The Magic In Action</h2>
+            <p class="section-subtitle">Type any problem and watch it transform into an adventure</p>
+        </div>
+        
+        <div class="demo-container">
+            <div class="demo-input-area">
+                <input type="text" class="demo-input" placeholder="Try: Sarah has 24 cookies and gives away 2/3..." id="demoInput">
+                <button class="demo-button" onclick="generateStory()">Create Story →</button>
+            </div>
+            
+            <div class="before-after-container">
+                <div class="before-after-slider">
+                    <div class="before-side">
+                        <div>
+                            <h3 style="color: var(--nova-pink); margin-bottom: 1rem;">❌ Traditional Homework</h3>
+                            <p style="font-family: monospace; line-height: 1.8;">
+                                Sarah has 24 cookies.<br>
+                                She gives away 2/3.<br>
+                                How many are left?<br><br>
+                                Solution: 24 - (24 × 2/3) = ?
+                            </p>
+                        </div>
+                    </div>
+                    <div class="after-side">
+                        <div>
+                            <h3 style="color: var(--success-green); margin-bottom: 1rem;">✨ VEDARK Story</h3>
+                            <p style="line-height: 1.8;">
+                                "Captain Sarah's spaceship has 24 emergency cookies! 
+                                An alien trade requires 2/3 of them for safe passage. 
+                                Your mission: Calculate remaining supplies before the crew gets hungry!"
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-container">
+                <div class="stat-card fade-in-up">
+                    <div class="stat-icon">🚀</div>
+                    <div class="stat-value counting" data-target="28749">0</div>
+                    <div class="stat-label">Stories Created Today</div>
+                </div>
+                <div class="stat-card fade-in-up">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-value">3.2s</div>
+                    <div class="stat-label">Average Generation Time</div>
+                </div>
+                <div class="stat-card fade-in-up">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-value">87%</div>
+                    <div class="stat-label">Grade Improvement</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Showcase -->
+    <section class="features-section" id="features">
+        <div class="section-header">
+            <h2 class="section-title">Three Ways to Learn</h2>
+            <p class="section-subtitle">Choose your adventure style</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card fade-in-up">
+                <div class="card-face card-front">
+                    <div class="feature-icon-large">📚</div>
+                    <h3 class="feature-name">Instant Homework Help</h3>
+                    <p style="text-align: center; opacity: 0.8;">Upload any problem, get a story instantly</p>
+                </div>
+                <div class="card-face card-back">
+                    <h3 class="feature-name">How It Works</h3>
+                    <div class="feature-preview"></div>
+                    <ul style="text-align: left; opacity: 0.9;">
+                        <li>📸 Snap a photo of homework</li>
+                        <li>🤖 AI analyzes the problem</li>
+                        <li>✨ Get personalized story solution</li>
+                        <li>🎯 Practice with similar problems</li>
+                    </ul>
+                </div>
+            </div>
+            <a href="vedark_battle_mode.html" style="text-decoration:none;color:inherit;" tabindex="0">
+            <div class="feature-card fade-in-up" style="cursor:pointer;">
+                <div class="card-face card-front">
+                    <div class="feature-icon-large">⚔️</div>
+                    <h3 class="feature-name">Battle Mode</h3>
+                    <p style="text-align: center; opacity: 0.8;">Challenge AI that makes mistakes on purpose</p>
+                </div>
+                <div class="card-face card-back">
+                    <h3 class="feature-name">How It Works</h3>
+                    <div class="feature-preview"></div>
+                    <ul style="text-align: left; opacity: 0.9;">
+                        <li>🎮 Choose your subject arena</li>
+                        <li>🤖 AI shows its solution</li>
+                        <li>🔍 Spot the mistakes</li>
+                        <li>🏆 Earn points and level up</li>
+                    </ul>
+                </div>
+            </div>
+            </a>
+            <div class="feature-card fade-in-up">
+                <div class="card-face card-front">
+                    <div class="feature-icon-large">👥</div>
+                    <h3 class="feature-name">Squad Stories</h3>
+                    <p style="text-align: center; opacity: 0.8;">Team up with friends for multiplayer learning</p>
+                </div>
+                <div class="card-face card-back">
+                    <h3 class="feature-name">How It Works</h3>
+                    <div class="feature-preview"></div>
+                    <ul style="text-align: left; opacity: 0.9;">
+                        <li>🎭 Pick your character role</li>
+                        <li>👥 Join friends online</li>
+                        <li>🧩 Solve problems together</li>
+                        <li>🎉 Celebrate team victories</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Success Metrics Dashboard -->
+    <section class="metrics-section">
+        <div class="section-header">
+            <h2 class="section-title">Real Results, Real Impact</h2>
+            <p class="section-subtitle">Watch how students transform with VEDARK</p>
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="chart-container">
+                <h3 style="margin-bottom: 1.5rem;">Grade Improvements Over Time</h3>
+                <div style="height: 300px; background: linear-gradient(to top, rgba(20, 184, 166, 0.1), rgba(20, 184, 166, 0.3)); border-radius: 15px; position: relative;">
+                    <div style="position: absolute; bottom: 0; left: 10%; width: 15%; height: 40%; background: var(--electric-teal); border-radius: 10px 10px 0 0; opacity: 0.8;"></div>
+                    <div style="position: absolute; bottom: 0; left: 30%; width: 15%; height: 60%; background: var(--electric-teal); border-radius: 10px 10px 0 0; opacity: 0.8;"></div>
+                    <div style="position: absolute; bottom: 0; left: 50%; width: 15%; height: 75%; background: var(--electric-teal); border-radius: 10px 10px 0 0; opacity: 0.8;"></div>
+                    <div style="position: absolute; bottom: 0; left: 70%; width: 15%; height: 85%; background: var(--electric-teal); border-radius: 10px 10px 0 0; opacity: 0.8;"></div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <h3 style="margin-bottom: 1.5rem;">Activity Heatmap</h3>
+                <p style="opacity: 0.7; font-size: 0.9rem; margin-bottom: 1rem;">Peak learning times</p>
+                <div class="activity-heatmap">
+                    <div class="heatmap-cell" style="opacity: 0.3;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.5;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.8;"></div>
+                    <div class="heatmap-cell" style="opacity: 1;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.9;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.4;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.2;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.6;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.9;"></div>
+                    <div class="heatmap-cell" style="opacity: 1;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.8;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.5;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.3;"></div>
+                    <div class="heatmap-cell" style="opacity: 0.2;"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials-section" id="success">
+        <div class="section-header">
+            <h2 class="section-title">Parents Love VEDARK</h2>
+            <p class="section-subtitle">Real stories from real families</p>
+        </div>
+        
+        <div class="testimonials-carousel">
+            <div class="testimonial-card" style="left: 50%; transform: translateX(-50%);">
+                <div class="testimonial-video">
+                    <div class="play-button">▶️</div>
+                </div>
+                <div class="rating-stars">
+                    <span class="star">⭐</span>
+                    <span class="star">⭐</span>
+                    <span class="star">⭐</span>
+                    <span class="star">⭐</span>
+                    <span class="star">⭐</span>
+                </div>
+                <p style="margin-bottom: 1rem; line-height: 1.6;">
+                    "My daughter went from crying over math homework to asking for more problems! 
+                    The story approach completely changed her attitude towards learning."
+                </p>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="width: 50px; height: 50px; background: var(--glass-white); border-radius: 50%;"></div>
+                    <div>
+                        <strong>Sarah Johnson</strong>
+                        <p style="opacity: 0.7; font-size: 0.9rem;">Parent of 4th grader</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing-section" id="pricing">
+        <div class="section-header">
+            <h2 class="section-title">Choose Your Adventure</h2>
+            <p class="section-subtitle">Start free, upgrade anytime</p>
+        </div>
+        
+        <div class="pricing-cards">
+            <div class="pricing-card fade-in-up">
+                <h3 class="plan-name">Starter</h3>
+                <div class="plan-price">$9.99<span>/month</span></div>
+                <p style="opacity: 0.7; margin-bottom: 2rem;">Perfect for trying VEDARK</p>
+                <ul class="plan-features">
+                    <li><span class="check-icon">✓</span> 100 AI story problems</li>
+                    <li><span class="check-icon">✓</span> Basic homework helper</li>
+                    <li><span class="check-icon">✓</span> Parent dashboard</li>
+                    <li><span class="check-icon">✓</span> Email support</li>
+                </ul>
+                <button class="demo-button" style="width: 100%;">Start Free Trial</button>
+            </div>
+            
+            <div class="pricing-card featured fade-in-up">
+                <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: var(--electric-teal); padding: 0.5rem 1.5rem; border-radius: 20px; font-size: 0.9rem; font-weight: 700;">MOST POPULAR</div>
+                <h3 class="plan-name">Adventure</h3>
+                <div class="plan-price">$19.99<span>/month</span></div>
+                <p style="opacity: 0.7; margin-bottom: 2rem;">Complete learning experience</p>
+                <ul class="plan-features">
+                    <li><span class="check-icon">✓</span> Unlimited AI stories</li>
+                    <li><span class="check-icon">✓</span> Battle Mode access</li>
+                    <li><span class="check-icon">✓</span> Squad Stories</li>
+                    <li><span class="check-icon">✓</span> Live group sessions</li>
+                    <li><span class="check-icon">✓</span> Priority support</li>
+                </ul>
+                <button class="demo-button" style="width: 100%;">Start Free Trial</button>
+            </div>
+            
+            <div class="pricing-card fade-in-up">
+                <h3 class="plan-name">Hero</h3>
+                <div class="plan-price">$29.99<span>/month</span></div>
+                <p style="opacity: 0.7; margin-bottom: 2rem;">Maximum adventure unlocked</p>
+                <ul class="plan-features">
+                    <li><span class="check-icon">✓</span> Everything in Adventure</li>
+                    <li><span class="check-icon">✓</span> Unlimited live sessions</li>
+                    <li><span class="check-icon">✓</span> Custom avatars</li>
+                    <li><span class="check-icon">✓</span> Production studio</li>
+                    <li><span class="check-icon">✓</span> White-glove support</li>
+                </ul>
+                <button class="demo-button" style="width: 100%;">Start Free Trial</button>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 3rem;">
+            <p style="color: var(--success-green); font-weight: 600;">🎉 Limited Time: Save 20% on annual plans</p>
+            <p style="opacity: 0.7; margin-top: 0.5rem;">30-day money-back guarantee • No credit card required to start</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Product</h3>
+                <ul class="footer-links">
+                    <li><a href="#">Features</a></li>
+                    <li><a href="#">Pricing</a></li>
+                    <li><a href="#">Demo</a></li>
+                    <li><a href="#">Success Stories</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Company</h3>
+                <ul class="footer-links">
+                    <li><a href="#">About Us</a></li>
+                    <li><a href="#">Blog</a></li>
+                    <li><a href="#">Careers</a></li>
+                    <li><a href="#">Contact</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Support</h3>
+                <ul class="footer-links">
+                    <li><a href="#">Help Center</a></li>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms of Service</a></li>
+                    <li><a href="#">COPPA Compliance</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Stay Updated</h3>
+                <p style="opacity: 0.7; margin-bottom: 1rem;">Get weekly story tips and updates</p>
+                <form class="newsletter-form" onsubmit="subscribeNewsletter(event)">
+                    <input type="email" class="newsletter-input" placeholder="Your email" required>
+                    <button type="submit" class="newsletter-button">Subscribe</button>
+                </form>
+                <div class="social-links">
+                    <a href="#" class="social-link">f</a>
+                    <a href="#" class="social-link">t</a>
+                    <a href="#" class="social-link">in</a>
+                    <a href="#" class="social-link">yt</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <p>&copy; 2024 VEDARK. All rights reserved. Made with ❤️ for students everywhere.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', () => {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Counting animation
+        function animateCount() {
+            const counters = document.querySelectorAll('.counting');
+            counters.forEach(counter => {
+                const target = parseInt(counter.getAttribute('data-target'));
+                const increment = target / 100;
+                let current = 0;
+                
+                const updateCount = () => {
+                    if (current < target) {
+                        current += increment;
+                        counter.textContent = Math.ceil(current).toLocaleString();
+                        requestAnimationFrame(updateCount);
+                    } else {
+                        counter.textContent = target.toLocaleString();
+                    }
+                };
+                updateCount();
+            });
+        }
+
+        // Intersection Observer for animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    
+                    // Trigger counting animation
+                    if (entry.target.querySelector('.counting')) {
+                        animateCount();
+                    }
+                }
+            });
+        }, observerOptions);
+
+        // Observe all fade-in elements
+        document.querySelectorAll('.fade-in-up').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Demo functionality
+        function generateStory() {
+            const input = document.getElementById('demoInput');
+            if (input.value) {
+                // Simulate story generation
+                alert('✨ Story generated! In the full version, you\'d see an amazing story based on: ' + input.value);
+            } else {
+                alert('Please enter a problem to transform into a story!');
+            }
+        }
+
+        // Newsletter subscription
+        function subscribeNewsletter(e) {
+            e.preventDefault();
+            // Simulate subscription
+            alert('🎉 Welcome to the VEDARK family! Check your email for story tips.');
+            e.target.reset();
+        }
+
+        // Start animations when page loads
+        window.addEventListener('load', () => {
+            // Trigger initial count for hero section
+            animateCount();
+        });
+
+        // Add hover effect to testimonial play buttons
+        document.querySelectorAll('.testimonial-video').forEach(video => {
+            video.addEventListener('click', () => {
+                alert('🎥 Video testimonials coming soon! For now, enjoy reading our amazing parent reviews.');
+            });
+        });
+
+        // Add interactive heatmap
+        document.querySelectorAll('.heatmap-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+                const opacity = parseFloat(cell.style.opacity);
+                const activity = Math.round(opacity * 100);
+                alert(`📊 ${activity}% activity during this time slot`);
+            });
+        });
+    </script>
+</body>
+</html>
