@@ -4,5 +4,5 @@
 echo "[Auto-sync] Starting auto-pull from GitHub..."
 while true; do
   git pull origin master || echo "[Auto-sync] Merge conflict or pull error! Manual resolution may be needed."
-  sleep 10
+  sleep 600
 done 
