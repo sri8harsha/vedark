@@ -75,38 +75,179 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
+    // Detect subject based on problem content
+    const detectSubject = (problem: string): string => {
+      const lowerProblem = problem.toLowerCase();
+      
+      // History keywords
+      if (lowerProblem.includes('war') || lowerProblem.includes('revolution') || 
+          lowerProblem.includes('battle') || lowerProblem.includes('president') ||
+          lowerProblem.includes('historical') || lowerProblem.includes('century') ||
+          lowerProblem.includes('empire') || lowerProblem.includes('ancient') ||
+          lowerProblem.includes('medieval') || lowerProblem.includes('colonial')) {
+        return 'History';
+      }
+      
+      // Science keywords
+      if (lowerProblem.includes('atom') || lowerProblem.includes('molecule') ||
+          lowerProblem.includes('chemical') || lowerProblem.includes('physics') ||
+          lowerProblem.includes('biology') || lowerProblem.includes('cell') ||
+          lowerProblem.includes('energy') || lowerProblem.includes('force') ||
+          lowerProblem.includes('experiment') || lowerProblem.includes('hypothesis')) {
+        return 'Science';
+      }
+      
+      // English keywords
+      if (lowerProblem.includes('essay') || lowerProblem.includes('paragraph') ||
+          lowerProblem.includes('grammar') || lowerProblem.includes('sentence') ||
+          lowerProblem.includes('literature') || lowerProblem.includes('poem') ||
+          lowerProblem.includes('story') || lowerProblem.includes('character') ||
+          lowerProblem.includes('theme') || lowerProblem.includes('author')) {
+        return 'English';
+      }
+      
+      // Math keywords (default if numbers or math terms found)
+      if (lowerProblem.includes('solve') || lowerProblem.includes('equation') ||
+          lowerProblem.includes('calculate') || lowerProblem.includes('find') ||
+          /\d/.test(lowerProblem) || lowerProblem.includes('x') ||
+          lowerProblem.includes('algebra') || lowerProblem.includes('geometry')) {
+        return 'Mathematics';
+      }
+      
+      // Default to Mathematics if no clear subject detected
+      return 'Mathematics';
+    };
+    
+    const detectedSubject = detectSubject(problem);
+    
+    // Generate subject-appropriate solutions
+    const generateSubjectSolution = (subject: string, problem: string): Partial<Solution> => {
+      switch (subject) {
+        case 'History':
+          return {
+            answer: "Key events include: Boston Tea Party (1773), Lexington and Concord (1775), Declaration of Independence (1776), Valley Forge (1777-78), and Yorktown (1781)",
+            steps: [
+              "Identify the time period: American Revolutionary War (1775-1783)",
+              "List major political events: Boston Tea Party, Continental Congress meetings",
+              "Identify key battles: Lexington & Concord, Bunker Hill, Saratoga, Yorktown",
+              "Note important documents: Declaration of Independence, Articles of Confederation",
+              "Consider the outcome: American independence and formation of new nation"
+            ],
+            explanation: "The Revolutionary War was a pivotal period in American history spanning 1775-1783. It began with growing tensions over British taxation and culminated in American independence. Key events shaped both military strategy and political development of the new nation.",
+            alternativeMethods: [
+              "Chronological timeline approach: Organize events by date",
+              "Thematic approach: Group by political, military, and social events",
+              "Cause and effect analysis: Connect events to their consequences"
+            ],
+            relatedConcepts: [
+              "Colonial resistance movements",
+              "Enlightenment political philosophy",
+              "Military strategy in 18th century warfare"
+            ],
+            practiceProblems: [
+              "What were the main causes of the Revolutionary War?",
+              "How did the French alliance affect the war's outcome?",
+              "What role did key figures like Washington and Franklin play?"
+            ]
+          };
+          
+        case 'Science':
+          return {
+            answer: "The mitochondria is the powerhouse of the cell, producing ATP through cellular respiration",
+            steps: [
+              "Identify the cellular structure in question",
+              "Understand the process of cellular respiration",
+              "Explain ATP production and energy conversion",
+              "Describe the mitochondria's structure and function",
+              "Connect to overall cellular metabolism"
+            ],
+            explanation: "Mitochondria are essential organelles that convert glucose and oxygen into usable energy (ATP) for cellular processes. This process, called cellular respiration, is vital for all living organisms.",
+            alternativeMethods: [
+              "Diagram analysis: Study mitochondrial structure",
+              "Chemical equation approach: Focus on respiration reactions",
+              "Comparative method: Compare to other organelles"
+            ],
+            relatedConcepts: [
+              "Cellular respiration",
+              "ATP synthesis",
+              "Organelle structure and function"
+            ],
+            practiceProblems: [
+              "What is the role of chloroplasts in plant cells?",
+              "How do enzymes affect cellular processes?",
+              "What happens during photosynthesis?"
+            ]
+          };
+          
+        case 'English':
+          return {
+            answer: "The main theme is the conflict between individual conscience and societal expectations, explored through character development and symbolism",
+            steps: [
+              "Identify the central conflict in the text",
+              "Analyze character motivations and development",
+              "Examine literary devices used by the author",
+              "Connect themes to broader social context",
+              "Support analysis with specific textual evidence"
+            ],
+            explanation: "Literary analysis requires examining how authors use various techniques to convey meaning. Themes often reflect universal human experiences and social issues relevant to both the time period and modern readers.",
+            alternativeMethods: [
+              "Character analysis approach: Focus on protagonist's journey",
+              "Symbolic interpretation: Analyze metaphors and symbols",
+              "Historical context method: Consider time period influences"
+            ],
+            relatedConcepts: [
+              "Literary themes and motifs",
+              "Character development techniques",
+              "Narrative structure and style"
+            ],
+            practiceProblems: [
+              "How does the author use symbolism to convey meaning?",
+              "What is the significance of the story's setting?",
+              "How do secondary characters support the main theme?"
+            ]
+          };
+          
+        default: // Mathematics
+          return {
+            answer: "x = 4",
+            steps: [
+              "Identify the given information and what we need to find",
+              "Set up the equation based on the problem context",
+              "Solve the equation step by step",
+              "Check the answer by substituting back into the original equation",
+              "Write the final answer with appropriate units"
+            ],
+            explanation: "This problem involves basic algebraic manipulation. We start by identifying the variables and setting up an equation that represents the relationship described in the problem.",
+            alternativeMethods: [
+              "Graphical method: Plot the equation and find intersection points",
+              "Trial and error: Test different values systematically",
+              "Using a calculator or computer algebra system"
+            ],
+            relatedConcepts: [
+              "Linear equations",
+              "Algebraic manipulation",
+              "Problem-solving strategies"
+            ],
+            practiceProblems: [
+              "If x + 5 = 12, find the value of x",
+              "Solve for y: 2y - 3 = 7",
+              "Find the solution: 3(x + 2) = 15"
+            ]
+          };
+      }
+    };
+    
+    const subjectSolution = generateSubjectSolution(detectedSubject, problem);
+    
     const mockSolution: Solution = {
       id: `solution_${Date.now()}`,
       problem: problem,
-      answer: "42",
-      steps: [
-        "Identify the given information and what we need to find",
-        "Set up the equation based on the problem context",
-        "Solve the equation step by step",
-        "Check the answer by substituting back into the original equation",
-        "Write the final answer with appropriate units"
-      ],
-      explanation: "This problem involves basic algebraic manipulation. We start by identifying the variables and setting up an equation that represents the relationship described in the problem.",
-      subject: "Mathematics",
+      subject: detectedSubject,
       difficulty: "medium",
-      timeToSolve: 3.5,
-      confidence: 95,
-      alternativeMethods: [
-        "Graphical method: Plot the equation and find intersection points",
-        "Trial and error: Test different values systematically",
-        "Using a calculator or computer algebra system"
-      ],
-      relatedConcepts: [
-        "Linear equations",
-        "Algebraic manipulation",
-        "Problem-solving strategies"
-      ],
-      practiceProblems: [
-        "If x + 5 = 12, find the value of x",
-        "Solve for y: 2y - 3 = 7",
-        "Find the solution: 3(x + 2) = 15"
-      ]
-    };
+      timeToSolve: detectedSubject === 'Mathematics' ? 3.5 : detectedSubject === 'History' ? 5.2 : 4.1,
+      confidence: detectedSubject === 'Mathematics' ? 95 : detectedSubject === 'History' ? 92 : 88,
+      ...subjectSolution
+    } as Solution;
     
     setIsProcessing(false);
     return mockSolution;
