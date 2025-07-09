@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import BattleMode from './components/BattleMode';
 import VedarkHomePage from './components/VedarkHomePage';
+import HomeworkHelper from './components/HomeworkHelper';
 
 type CurrentView = 'home' | 'battle-mode' | 'squad-stories' | 'ai-stories' | 'homework-helper' | 'live-sessions';
 
@@ -54,18 +55,7 @@ function App() {
     
     case 'homework-helper':
       return (
-        <div className="min-h-screen bg-gradient-to-br from-green-900 to-emerald-900 text-white flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold mb-4">🤝 Homework Helper</h1>
-            <p className="text-xl mb-8">AI-powered homework assistance coming soon!</p>
-            <button 
-              onClick={goHome}
-              className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-full font-bold"
-            >
-              ← Back to Home
-            </button>
-          </div>
-        </div>
+        <HomeworkHelper onBackToHome={goHome} />
       );
     
     case 'live-sessions':
