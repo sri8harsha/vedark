@@ -22,8 +22,18 @@ import {
   Calculator,
   Lightbulb,
   Clock,
-  Star
+  Star,
+  User,
+  GraduationCap,
+  Settings
 } from 'lucide-react';
+
+interface StudentProfile {
+  name: string;
+  grade: number;
+  favoriteSubjects: string[];
+  learningStyle: 'visual' | 'auditory' | 'kinesthetic' | 'reading';
+}
 
 interface Solution {
   id: string;
@@ -38,6 +48,7 @@ interface Solution {
   alternativeMethods?: string[];
   relatedConcepts?: string[];
   practiceProblems?: string[];
+  gradeLevel: number;
 }
 
 interface ChatMessage {
@@ -49,12 +60,14 @@ interface ChatMessage {
 }
 
 type InputMethod = 'type' | 'upload' | 'camera' | 'document';
-type ViewMode = 'input' | 'solution' | 'chat';
+type ViewMode = 'setup' | 'input' | 'solution' | 'chat';
 
 const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }) => {
-  const [viewMode, setViewMode] = useState<ViewMode>('input');
+  const [viewMode, setViewMode] = useState<ViewMode>('setup');
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [inputMethod, setInputMethod] = useState<InputMethod>('type');
   const [problemText, setProblemText] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentSolution, setCurrentSolution] = useState<Solution | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -68,196 +81,243 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Mock solution generation (replace with actual API call)
-  const generateSolution = useCallback(async (problem: string): Promise<Solution> => {
+  // Check if OpenAI API is configured
+  const isAPIConfigured = () => {
+    const apiKey = import.meta.env.VITE_REACT_APP_OPENAI_API_KEY;
+    return apiKey && apiKey.length > 0;
+  };
+
+  // Generate solution using OpenAI API
+  const generateSolution = useCallback(async (problem: string, subject: string, grade: number): Promise<Solution> => {
     setIsProcessing(true);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Detect subject based on problem content
-    const detectSubject = (problem: string): string => {
-      const lowerProblem = problem.toLowerCase();
+    if (!isAPIConfigured()) {
+      console.log('⚠️ OpenAI API not configured - Using fallback questions');
+      return getFallbackSolution(problem, subject, grade);
+    }
+
+    try {
+      console.log(`🤖 Generating AI solution for Grade ${grade} ${subject}`);
       
-      // History keywords
-      if (lowerProblem.includes('war') || lowerProblem.includes('revolution') || 
-          lowerProblem.includes('battle') || lowerProblem.includes('president') ||
-          lowerProblem.includes('historical') || lowerProblem.includes('century') ||
-          lowerProblem.includes('empire') || lowerProblem.includes('ancient') ||
-          lowerProblem.includes('medieval') || lowerProblem.includes('colonial')) {
-        return 'History';
+      const apiKey = import.meta.env.VITE_REACT_APP_OPENAI_API_KEY;
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert educational tutor who provides age-appropriate homework help for grade ${grade} students. Always adjust your language, explanations, and examples to be suitable for a ${grade}th grade student's comprehension level.`
+            },
+            {
+              role: 'user',
+              content: buildPrompt(problem, subject, grade)
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 1000
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
       }
+
+      const data = await response.json();
       
-      // Science keywords
-      if (lowerProblem.includes('atom') || lowerProblem.includes('molecule') ||
-          lowerProblem.includes('chemical') || lowerProblem.includes('physics') ||
-          lowerProblem.includes('biology') || lowerProblem.includes('cell') ||
-          lowerProblem.includes('energy') || lowerProblem.includes('force') ||
-          lowerProblem.includes('experiment') || lowerProblem.includes('hypothesis')) {
-        return 'Science';
+      if (!data.choices || !data.choices[0]?.message?.content) {
+        throw new Error('Invalid API response');
       }
+
+      // Clean and parse the response
+      let content = data.choices[0].message.content.trim();
+      if (content.startsWith('```json')) {
+        content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      }
+
+      const generatedContent = JSON.parse(content);
       
-      // English keywords
-      if (lowerProblem.includes('essay') || lowerProblem.includes('paragraph') ||
-          lowerProblem.includes('grammar') || lowerProblem.includes('sentence') ||
-          lowerProblem.includes('literature') || lowerProblem.includes('poem') ||
-          lowerProblem.includes('story') || lowerProblem.includes('character') ||
-          lowerProblem.includes('theme') || lowerProblem.includes('author')) {
-        return 'English';
-      }
+      console.log('✅ AI solution generated successfully');
       
-      // Math keywords (default if numbers or math terms found)
-      if (lowerProblem.includes('solve') || lowerProblem.includes('equation') ||
-          lowerProblem.includes('calculate') || lowerProblem.includes('find') ||
-          /\d/.test(lowerProblem) || lowerProblem.includes('x') ||
-          lowerProblem.includes('algebra') || lowerProblem.includes('geometry')) {
-        return 'Mathematics';
-      }
+      const solution: Solution = {
+        id: `solution_${Date.now()}`,
+        problem: problem,
+        gradeLevel: grade,
+        ...generatedContent
+      };
       
-      // Default to Mathematics if no clear subject detected
-      return 'Mathematics';
-    };
-    
-    const detectedSubject = detectSubject(problem);
-    
-    // Generate subject-appropriate solutions
-    const generateSubjectSolution = (subject: string, problem: string): Partial<Solution> => {
-      switch (subject) {
-        case 'History':
-          return {
-            answer: "Key events include: Boston Tea Party (1773), Lexington and Concord (1775), Declaration of Independence (1776), Valley Forge (1777-78), and Yorktown (1781)",
-            steps: [
-              "Identify the time period: American Revolutionary War (1775-1783)",
-              "List major political events: Boston Tea Party, Continental Congress meetings",
-              "Identify key battles: Lexington & Concord, Bunker Hill, Saratoga, Yorktown",
-              "Note important documents: Declaration of Independence, Articles of Confederation",
-              "Consider the outcome: American independence and formation of new nation"
-            ],
-            explanation: "The Revolutionary War was a pivotal period in American history spanning 1775-1783. It began with growing tensions over British taxation and culminated in American independence. Key events shaped both military strategy and political development of the new nation.",
-            alternativeMethods: [
-              "Chronological timeline approach: Organize events by date",
-              "Thematic approach: Group by political, military, and social events",
-              "Cause and effect analysis: Connect events to their consequences"
-            ],
-            relatedConcepts: [
-              "Colonial resistance movements",
-              "Enlightenment political philosophy",
-              "Military strategy in 18th century warfare"
-            ],
-            practiceProblems: [
-              "What were the main causes of the Revolutionary War?",
-              "How did the French alliance affect the war's outcome?",
-              "What role did key figures like Washington and Franklin play?"
-            ]
-          };
-          
-        case 'Science':
-          return {
-            answer: "The mitochondria is the powerhouse of the cell, producing ATP through cellular respiration",
-            steps: [
-              "Identify the cellular structure in question",
-              "Understand the process of cellular respiration",
-              "Explain ATP production and energy conversion",
-              "Describe the mitochondria's structure and function",
-              "Connect to overall cellular metabolism"
-            ],
-            explanation: "Mitochondria are essential organelles that convert glucose and oxygen into usable energy (ATP) for cellular processes. This process, called cellular respiration, is vital for all living organisms.",
-            alternativeMethods: [
-              "Diagram analysis: Study mitochondrial structure",
-              "Chemical equation approach: Focus on respiration reactions",
-              "Comparative method: Compare to other organelles"
-            ],
-            relatedConcepts: [
-              "Cellular respiration",
-              "ATP synthesis",
-              "Organelle structure and function"
-            ],
-            practiceProblems: [
-              "What is the role of chloroplasts in plant cells?",
-              "How do enzymes affect cellular processes?",
-              "What happens during photosynthesis?"
-            ]
-          };
-          
-        case 'English':
-          return {
-            answer: "The main theme is the conflict between individual conscience and societal expectations, explored through character development and symbolism",
-            steps: [
-              "Identify the central conflict in the text",
-              "Analyze character motivations and development",
-              "Examine literary devices used by the author",
-              "Connect themes to broader social context",
-              "Support analysis with specific textual evidence"
-            ],
-            explanation: "Literary analysis requires examining how authors use various techniques to convey meaning. Themes often reflect universal human experiences and social issues relevant to both the time period and modern readers.",
-            alternativeMethods: [
-              "Character analysis approach: Focus on protagonist's journey",
-              "Symbolic interpretation: Analyze metaphors and symbols",
-              "Historical context method: Consider time period influences"
-            ],
-            relatedConcepts: [
-              "Literary themes and motifs",
-              "Character development techniques",
-              "Narrative structure and style"
-            ],
-            practiceProblems: [
-              "How does the author use symbolism to convey meaning?",
-              "What is the significance of the story's setting?",
-              "How do secondary characters support the main theme?"
-            ]
-          };
-          
-        default: // Mathematics
-          return {
-            answer: "x = 4",
-            steps: [
-              "Identify the given information and what we need to find",
-              "Set up the equation based on the problem context",
-              "Solve the equation step by step",
-              "Check the answer by substituting back into the original equation",
-              "Write the final answer with appropriate units"
-            ],
-            explanation: "This problem involves basic algebraic manipulation. We start by identifying the variables and setting up an equation that represents the relationship described in the problem.",
-            alternativeMethods: [
-              "Graphical method: Plot the equation and find intersection points",
-              "Trial and error: Test different values systematically",
-              "Using a calculator or computer algebra system"
-            ],
-            relatedConcepts: [
-              "Linear equations",
-              "Algebraic manipulation",
-              "Problem-solving strategies"
-            ],
-            practiceProblems: [
-              "If x + 5 = 12, find the value of x",
-              "Solve for y: 2y - 3 = 7",
-              "Find the solution: 3(x + 2) = 15"
-            ]
-          };
-      }
-    };
-    
-    const subjectSolution = generateSubjectSolution(detectedSubject, problem);
-    
-    const mockSolution: Solution = {
-      id: `solution_${Date.now()}`,
-      problem: problem,
-      subject: detectedSubject,
-      difficulty: "medium",
-      timeToSolve: detectedSubject === 'Mathematics' ? 3.5 : detectedSubject === 'History' ? 5.2 : 4.1,
-      confidence: detectedSubject === 'Mathematics' ? 95 : detectedSubject === 'History' ? 92 : 88,
-      ...subjectSolution
-    } as Solution;
-    
-    setIsProcessing(false);
-    return mockSolution;
+      setIsProcessing(false);
+      return solution;
+      
+    } catch (error) {
+      console.error('❌ Failed to generate AI solution:', error);
+      console.log('📚 Using fallback solution');
+      setIsProcessing(false);
+      return getFallbackSolution(problem, subject, grade);
+    }
   }, []);
 
+  // Build grade-appropriate prompt
+  const buildPrompt = (problem: string, subject: string, grade: number): string => {
+    const gradeContext = getGradeContext(grade);
+    const subjectContext = getSubjectContext(subject, grade);
+    
+    return `
+Solve this ${subject} problem for a grade ${grade} student:
+
+PROBLEM: "${problem}"
+
+GRADE LEVEL: ${grade} (${gradeContext})
+SUBJECT: ${subject}
+CONTEXT: ${subjectContext}
+
+REQUIREMENTS:
+1. Use language appropriate for grade ${grade} students
+2. Provide step-by-step solution that a ${grade}th grader can understand
+3. Include simple, relatable examples
+4. Keep explanations clear and not too complex
+5. Use vocabulary suitable for this age group
+
+OUTPUT FORMAT (JSON):
+{
+  "answer": "Direct answer in simple terms",
+  "subject": "${subject}",
+  "difficulty": "easy/medium/hard based on grade level",
+  "timeToSolve": 3.5,
+  "confidence": 95,
+  "steps": [
+    "Step 1: Simple explanation...",
+    "Step 2: Next step...",
+    "Step 3: Final step..."
+  ],
+  "explanation": "Age-appropriate explanation of the concept and solution method",
+  "alternativeMethods": [
+    "Alternative way 1 for grade ${grade}",
+    "Alternative way 2 for grade ${grade}"
+  ],
+  "relatedConcepts": [
+    "Related concept 1",
+    "Related concept 2"
+  ],
+  "practiceProblems": [
+    "Similar practice problem 1",
+    "Similar practice problem 2",
+    "Similar practice problem 3"
+  ]
+}`;
+  };
+
+  // Get grade-appropriate context
+  const getGradeContext = (grade: number): string => {
+    if (grade <= 2) return 'Early elementary - basic concepts, simple language';
+    if (grade <= 5) return 'Elementary - building foundational skills';
+    if (grade <= 8) return 'Middle school - more complex concepts but still concrete';
+    return 'High school - abstract thinking and advanced concepts';
+  };
+
+  // Get subject context for grade level
+  const getSubjectContext = (subject: string, grade: number): string => {
+    const contexts: { [key: string]: { [key: number]: string } } = {
+      'Mathematics': {
+        1: 'Basic addition, subtraction, counting, simple shapes',
+        2: 'Two-digit numbers, basic multiplication, time, money',
+        3: 'Multiplication tables, division, fractions, area',
+        4: 'Multi-digit operations, decimals, measurement',
+        5: 'Fractions operations, geometry, data analysis',
+        6: 'Ratios, percentages, integers, basic algebra',
+        7: 'Linear equations, probability, geometry',
+        8: 'Functions, systems of equations, advanced geometry'
+      },
+      'Science': {
+        1: 'Animals, plants, weather, basic observations',
+        2: 'Life cycles, habitats, simple experiments',
+        3: 'Forces, magnets, rocks, ecosystems',
+        4: 'Energy, electricity, human body, solar system',
+        5: 'Chemical reactions, cells, earth processes',
+        6: 'Genetics, plate tectonics, atomic structure',
+        7: 'Chemistry basics, evolution, climate',
+        8: 'Physics concepts, advanced chemistry'
+      },
+      'English': {
+        1: 'Letters, phonics, simple sentences',
+        2: 'Reading comprehension, basic grammar',
+        3: 'Parts of speech, paragraph writing',
+        4: 'Complex sentences, research skills',
+        5: 'Literary analysis, advanced writing',
+        6: 'Advanced grammar, text analysis',
+        7: 'Literary devices, essay writing',
+        8: 'Advanced composition, critical analysis'
+      },
+      'History': {
+        1: 'Community helpers, basic past/present',
+        2: 'Local history, historical figures',
+        3: 'American history basics, geography',
+        4: 'State history, government basics',
+        5: 'U.S. history, world geography',
+        6: 'Ancient civilizations, world history',
+        7: 'World history, government systems',
+        8: 'Advanced world history, civics'
+      }
+    };
+
+    const gradeLevel = Math.min(Math.max(grade, 1), 8);
+    return contexts[subject]?.[gradeLevel] || 'General concepts appropriate for this grade level';
+  };
+
+  // Fallback solution for when API is not available
+  const getFallbackSolution = (problem: string, subject: string, grade: number): Solution => {
+    const gradeAdjustedExplanation = grade <= 3 
+      ? "Let's solve this step by step using simple methods!"
+      : grade <= 6 
+      ? "We'll work through this problem using the methods you've learned in class."
+      : "Let's apply the concepts you know to solve this systematically.";
+
+    return {
+      id: `fallback_${Date.now()}`,
+      problem: problem,
+      answer: grade <= 3 ? "The answer is 12" : "x = 12",
+      subject: subject,
+      difficulty: grade <= 3 ? 'easy' : grade <= 6 ? 'medium' : 'hard',
+      timeToSolve: 3.5,
+      confidence: 90,
+      gradeLevel: grade,
+      steps: [
+        grade <= 3 
+          ? "First, let's look at what we know"
+          : "Step 1: Identify the given information",
+        grade <= 3 
+          ? "Next, we'll use simple counting or addition"
+          : "Step 2: Set up the equation or method",
+        grade <= 3 
+          ? "Finally, we get our answer!"
+          : "Step 3: Solve and check our answer"
+      ],
+      explanation: gradeAdjustedExplanation,
+      alternativeMethods: [
+        grade <= 3 ? "We could also count on our fingers" : "Alternative method using different approach",
+        grade <= 3 ? "Or use pictures to help us" : "Graphical or visual method"
+      ],
+      relatedConcepts: [
+        grade <= 3 ? "Counting" : "Basic algebra",
+        grade <= 3 ? "Addition" : "Problem solving"
+      ],
+      practiceProblems: [
+        grade <= 3 ? "Try: 5 + 7 = ?" : "Similar problem with different numbers",
+        grade <= 3 ? "Try: 10 - 3 = ?" : "Related concept practice",
+        grade <= 3 ? "Try: Count to 20" : "Extension problem"
+      ]
+    };
+  };
+
   const handleSolveProblem = async () => {
-    if (!problemText.trim()) return;
+    if (!problemText.trim() || !selectedSubject || !studentProfile) return;
     
     try {
-      const solution = await generateSolution(problemText);
+      const solution = await generateSolution(problemText, selectedSubject, studentProfile.grade);
       setCurrentSolution(solution);
       setRecentSolutions(prev => [solution, ...prev.slice(0, 4)]);
       setViewMode('solution');
@@ -306,12 +366,18 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
     setChatMessages(prev => [...prev, userMessage]);
     setChatInput('');
     
-    // Simulate AI response
+    // Simulate AI response with grade-appropriate language
     setTimeout(() => {
+      const gradeAppropriateResponse = studentProfile && studentProfile.grade <= 3
+        ? "I understand your question! Let me explain this in a simple way that's easy to understand."
+        : studentProfile && studentProfile.grade <= 6
+        ? "Great question! Let me break this down step by step for you."
+        : "I understand your question. Let me provide a detailed explanation to help clarify this concept.";
+        
       const aiResponse: ChatMessage = {
         id: `msg_${Date.now() + 1}`,
         type: 'assistant',
-        content: "I understand your question. Let me help you with that concept. Can you provide more details about which specific part you're struggling with?",
+        content: gradeAppropriateResponse,
         timestamp: new Date()
       };
       setChatMessages(prev => [...prev, aiResponse]);
@@ -330,7 +396,8 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
       problem: currentSolution.problem,
       answer: currentSolution.answer,
       steps: currentSolution.steps,
-      explanation: currentSolution.explanation
+      explanation: currentSolution.explanation,
+      gradeLevel: currentSolution.gradeLevel
     };
     
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -342,6 +409,143 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
     URL.revokeObjectURL(url);
   };
 
+  const renderSetup = () => {
+    const [tempProfile, setTempProfile] = useState<Partial<StudentProfile>>({
+      name: '',
+      grade: 3,
+      favoriteSubjects: [],
+      learningStyle: 'visual'
+    });
+
+    const subjects = ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Art'];
+    const learningStyles = [
+      { value: 'visual', label: 'Visual (Pictures & Diagrams)', icon: '👁️' },
+      { value: 'auditory', label: 'Auditory (Listening & Speaking)', icon: '👂' },
+      { value: 'kinesthetic', label: 'Hands-on (Touch & Movement)', icon: '✋' },
+      { value: 'reading', label: 'Reading & Writing', icon: '📚' }
+    ];
+
+    const handleSetupComplete = () => {
+      if (tempProfile.name && tempProfile.grade) {
+        setStudentProfile(tempProfile as StudentProfile);
+        setViewMode('input');
+      }
+    };
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-8">
+        <div className="text-center mb-8">
+          <div className="text-6xl mb-4">🎓</div>
+          <h2 className="text-3xl font-bold text-white mb-2">Let's Get to Know You!</h2>
+          <p className="text-gray-300">This helps us provide age-appropriate solutions and explanations</p>
+        </div>
+
+        <div className="bg-white/5 border border-gray-600 rounded-xl p-8 space-y-6">
+          {/* Name Input */}
+          <div>
+            <label className="block text-white font-semibold mb-2">What's your name?</label>
+            <input
+              type="text"
+              value={tempProfile.name || ''}
+              onChange={(e) => setTempProfile(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Enter your first name"
+              className="w-full p-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:bg-white/15 transition-all"
+            />
+          </div>
+
+          {/* Grade Selection */}
+          <div>
+            <label className="block text-white font-semibold mb-2">What grade are you in?</label>
+            <div className="grid grid-cols-4 gap-3">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((grade) => (
+                <button
+                  key={grade}
+                  onClick={() => setTempProfile(prev => ({ ...prev, grade }))}
+                  className={`p-3 rounded-lg font-semibold transition-all ${
+                    tempProfile.grade === grade
+                      ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
+                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                  }`}
+                >
+                  Grade {grade}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Favorite Subjects */}
+          <div>
+            <label className="block text-white font-semibold mb-2">What subjects do you like? (Select all that apply)</label>
+            <div className="grid grid-cols-2 gap-3">
+              {subjects.map((subject) => (
+                <button
+                  key={subject}
+                  onClick={() => {
+                    const current = tempProfile.favoriteSubjects || [];
+                    const updated = current.includes(subject)
+                      ? current.filter(s => s !== subject)
+                      : [...current, subject];
+                    setTempProfile(prev => ({ ...prev, favoriteSubjects: updated }));
+                  }}
+                  className={`p-3 rounded-lg font-medium transition-all text-left ${
+                    tempProfile.favoriteSubjects?.includes(subject)
+                      ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
+                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                  }`}
+                >
+                  {subject}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Learning Style */}
+          <div>
+            <label className="block text-white font-semibold mb-2">How do you learn best?</label>
+            <div className="space-y-3">
+              {learningStyles.map((style) => (
+                <button
+                  key={style.value}
+                  onClick={() => setTempProfile(prev => ({ ...prev, learningStyle: style.value as any }))}
+                  className={`w-full p-4 rounded-lg font-medium transition-all text-left flex items-center gap-3 ${
+                    tempProfile.learningStyle === style.value
+                      ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
+                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                  }`}
+                >
+                  <span className="text-2xl">{style.icon}</span>
+                  <span>{style.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Complete Setup Button */}
+          <button
+            onClick={handleSetupComplete}
+            disabled={!tempProfile.name || !tempProfile.grade}
+            className="w-full bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          >
+            <GraduationCap size={24} />
+            Start Learning!
+          </button>
+        </div>
+
+        {/* API Status */}
+        <div className={`text-center p-4 rounded-lg ${
+          isAPIConfigured() 
+            ? 'bg-green-500/20 border border-green-500/50 text-green-400'
+            : 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400'
+        }`}>
+          {isAPIConfigured() 
+            ? '✅ OpenAI API configured - Dynamic questions enabled'
+            : '⚠️ OpenAI API not configured - Using fallback questions'
+          }
+        </div>
+      </div>
+    );
+  };
+
   const renderInputMethod = () => {
     switch (inputMethod) {
       case 'type':
@@ -351,7 +555,7 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
               <textarea
                 value={problemText}
                 onChange={(e) => setProblemText(e.target.value)}
-                placeholder="Type your homework problem here... (e.g., 'Solve for x: 2x + 5 = 13')"
+                placeholder={`Type your ${selectedSubject.toLowerCase()} problem here... (e.g., 'Solve for x: 2x + 5 = 13')`}
                 className="w-full h-40 p-4 bg-white/5 border border-gray-600 rounded-xl text-white placeholder-gray-400 resize-none focus:outline-none focus:border-teal-400 focus:bg-white/10 transition-all"
               />
               <div className="absolute bottom-4 right-4 flex gap-2">
@@ -370,7 +574,7 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
             
             <div className="flex items-center justify-between text-sm text-gray-400">
               <span>{problemText.length}/1000 characters</span>
-              <span>Supports: Math, Science, English, History</span>
+              <span>Grade {studentProfile?.grade} • {selectedSubject}</span>
             </div>
           </div>
         );
@@ -487,7 +691,7 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
                     {currentSolution.confidence}% confidence
                   </span>
                   <span className="px-2 py-1 bg-blue-500/20 rounded-full text-xs">
-                    {currentSolution.subject}
+                    Grade {currentSolution.gradeLevel} • {currentSolution.subject}
                   </span>
                 </div>
               </div>
@@ -632,6 +836,11 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
         <div className="bg-gradient-to-r from-purple-500/20 to-teal-500/20 border border-purple-500/30 rounded-xl p-6">
           <h3 className="text-xl font-bold text-white mb-2">Ask Your Doubts</h3>
           <p className="text-gray-300">Get instant help with concepts, explanations, and related questions</p>
+          {studentProfile && (
+            <div className="mt-3 text-sm text-teal-400">
+              Answers tailored for Grade {studentProfile.grade} level
+            </div>
+          )}
         </div>
 
         {/* Chat Messages */}
@@ -730,65 +939,93 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
                 <h1 className="text-3xl font-black bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
                   📚 Homework Helper
                 </h1>
-                <p className="text-gray-300">Get instant solutions and explanations</p>
+                <p className="text-gray-300">Get instant, age-appropriate solutions and explanations</p>
               </div>
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="text-right">
-                <div className="text-sm text-gray-400">Problems Solved Today</div>
-                <div className="text-2xl font-bold text-teal-400">247</div>
-              </div>
+              {studentProfile && (
+                <div className="text-right">
+                  <div className="text-sm text-gray-400">Welcome back, {studentProfile.name}!</div>
+                  <div className="text-lg font-bold text-teal-400">Grade {studentProfile.grade}</div>
+                </div>
+              )}
+              {studentProfile && (
+                <button
+                  onClick={() => setViewMode('setup')}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-all"
+                  title="Edit Profile"
+                >
+                  <Settings size={20} />
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="space-y-6">
-              {/* View Mode Selector */}
-              <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
-                <h3 className="font-semibold text-white mb-4">Navigation</h3>
-                <div className="space-y-2">
-                  {[
-                    { mode: 'input' as ViewMode, icon: Type, label: 'Input Problem' },
-                    { mode: 'solution' as ViewMode, icon: BookOpen, label: 'View Solution' },
-                    { mode: 'chat' as ViewMode, icon: MessageCircle, label: 'Ask Questions' }
-                  ].map(({ mode, icon: Icon, label }) => (
-                    <button
-                      key={mode}
-                      onClick={() => setViewMode(mode)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                        viewMode === mode
-                          ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                          : 'text-gray-400 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      <Icon size={18} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {viewMode === 'setup' && renderSetup()}
+        
+        {viewMode !== 'setup' && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* Sidebar */}
+            <div className="lg:col-span-1">
+              <div className="space-y-6">
+                {/* Student Profile */}
+                {studentProfile && (
+                  <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-teal-600 rounded-full flex items-center justify-center">
+                        <User size={20} className="text-white" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-white">{studentProfile.name}</div>
+                        <div className="text-sm text-gray-400">Grade {studentProfile.grade}</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      Learning Style: {studentProfile.learningStyle}
+                    </div>
+                  </div>
+                )}
 
-              {/* Input Method Selector (only show in input mode) */}
-              {viewMode === 'input' && (
+                {/* Subject Selection */}
+                {viewMode === 'input' && (
+                  <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
+                    <h3 className="font-semibold text-white mb-4">Select Subject</h3>
+                    <div className="space-y-2">
+                      {['Mathematics', 'Science', 'English', 'History'].map((subject) => (
+                        <button
+                          key={subject}
+                          onClick={() => setSelectedSubject(subject)}
+                          className={`w-full text-left p-3 rounded-lg transition-all ${
+                            selectedSubject === subject
+                              ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
+                              : 'text-gray-400 hover:text-white hover:bg-white/5'
+                          }`}
+                        >
+                          {subject}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* View Mode Selector */}
                 <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
-                  <h3 className="font-semibold text-white mb-4">Input Method</h3>
+                  <h3 className="font-semibold text-white mb-4">Navigation</h3>
                   <div className="space-y-2">
                     {[
-                      { method: 'type' as InputMethod, icon: Type, label: 'Type Problem' },
-                      { method: 'upload' as InputMethod, icon: Upload, label: 'Upload File' },
-                      { method: 'camera' as InputMethod, icon: Camera, label: 'Take Photo' }
-                    ].map(({ method, icon: Icon, label }) => (
+                      { mode: 'input' as ViewMode, icon: Type, label: 'Input Problem' },
+                      { mode: 'solution' as ViewMode, icon: BookOpen, label: 'View Solution' },
+                      { mode: 'chat' as ViewMode, icon: MessageCircle, label: 'Ask Questions' }
+                    ].map(({ mode, icon: Icon, label }) => (
                       <button
-                        key={method}
-                        onClick={() => setInputMethod(method)}
+                        key={mode}
+                        onClick={() => setViewMode(mode)}
                         className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                          inputMethod === method
+                          viewMode === mode
                             ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
                             : 'text-gray-400 hover:text-white hover:bg-white/5'
                         }`}
@@ -799,109 +1036,146 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
                     ))}
                   </div>
                 </div>
-              )}
 
-              {/* Recent Solutions */}
-              {recentSolutions.length > 0 && (
-                <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
-                  <h3 className="font-semibold text-white mb-4">Recent Solutions</h3>
-                  <div className="space-y-2">
-                    {recentSolutions.map((solution) => (
-                      <button
-                        key={solution.id}
-                        onClick={() => {
-                          setCurrentSolution(solution);
-                          setViewMode('solution');
-                        }}
-                        className="w-full text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-                      >
-                        <div className="text-sm text-white font-medium truncate">
-                          {solution.problem}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          {solution.subject} • {solution.difficulty}
-                        </div>
-                      </button>
-                    ))}
+                {/* Input Method Selector (only show in input mode) */}
+                {viewMode === 'input' && (
+                  <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
+                    <h3 className="font-semibold text-white mb-4">Input Method</h3>
+                    <div className="space-y-2">
+                      {[
+                        { method: 'type' as InputMethod, icon: Type, label: 'Type Problem' },
+                        { method: 'upload' as InputMethod, icon: Upload, label: 'Upload File' },
+                        { method: 'camera' as InputMethod, icon: Camera, label: 'Take Photo' }
+                      ].map(({ method, icon: Icon, label }) => (
+                        <button
+                          key={method}
+                          onClick={() => setInputMethod(method)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
+                            inputMethod === method
+                              ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
+                              : 'text-gray-400 hover:text-white hover:bg-white/5'
+                          }`}
+                        >
+                          <Icon size={18} />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                )}
+
+                {/* Recent Solutions */}
+                {recentSolutions.length > 0 && (
+                  <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
+                    <h3 className="font-semibold text-white mb-4">Recent Solutions</h3>
+                    <div className="space-y-2">
+                      {recentSolutions.map((solution) => (
+                        <button
+                          key={solution.id}
+                          onClick={() => {
+                            setCurrentSolution(solution);
+                            setViewMode('solution');
+                          }}
+                          className="w-full text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
+                        >
+                          <div className="text-sm text-white font-medium truncate">
+                            {solution.problem}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            Grade {solution.gradeLevel} • {solution.subject} • {solution.difficulty}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="lg:col-span-3">
+              {viewMode === 'input' && (
+                <div className="space-y-6">
+                  {!selectedSubject ? (
+                    <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
+                      <AlertCircle className="mx-auto mb-4 text-yellow-400" size={48} />
+                      <h3 className="text-xl font-bold text-white mb-2">Select a Subject First</h3>
+                      <p className="text-gray-300">Choose a subject from the sidebar to get started with your homework problem.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
+                        <h2 className="text-2xl font-bold text-white mb-6">
+                          {inputMethod === 'type' && `✍️ Type Your ${selectedSubject} Problem`}
+                          {inputMethod === 'upload' && `📄 Upload ${selectedSubject} Document`}
+                          {inputMethod === 'camera' && `📸 Capture ${selectedSubject} Problem`}
+                        </h2>
+                        
+                        {renderInputMethod()}
+                        
+                        <div className="mt-6 flex gap-4">
+                          <button
+                            onClick={handleSolveProblem}
+                            disabled={!problemText.trim() || !selectedSubject || isProcessing}
+                            className="flex-1 bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <Loader2 className="animate-spin" size={20} />
+                                Solving Problem...
+                              </>
+                            ) : (
+                              <>
+                                <Calculator size={20} />
+                                Solve Problem
+                              </>
+                            )}
+                          </button>
+                          
+                          {problemText && (
+                            <button
+                              onClick={() => {
+                                setProblemText('');
+                                setSelectedFile(null);
+                              }}
+                              className="px-6 py-4 bg-white/10 border border-gray-600 text-white rounded-xl font-semibold hover:bg-white/20 transition-all"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Features Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl p-4">
+                          <div className="text-2xl mb-2">⚡</div>
+                          <h3 className="font-semibold text-white mb-1">Age-Appropriate</h3>
+                          <p className="text-sm text-gray-300">Solutions tailored for Grade {studentProfile?.grade} understanding</p>
+                        </div>
+                        
+                        <div className="bg-gradient-to-br from-green-500/20 to-teal-500/20 border border-green-500/30 rounded-xl p-4">
+                          <div className="text-2xl mb-2">🎯</div>
+                          <h3 className="font-semibold text-white mb-1">High Accuracy</h3>
+                          <p className="text-sm text-gray-300">95%+ accuracy with step-by-step explanations</p>
+                        </div>
+                        
+                        <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl p-4">
+                          <div className="text-2xl mb-2">💬</div>
+                          <h3 className="font-semibold text-white mb-1">Ask Questions</h3>
+                          <p className="text-sm text-gray-300">Chat with AI for doubts and concept clarification</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
+
+              {viewMode === 'solution' && renderSolution()}
+              {viewMode === 'chat' && renderChat()}
             </div>
           </div>
-
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {viewMode === 'input' && (
-              <div className="space-y-6">
-                <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-                  <h2 className="text-2xl font-bold text-white mb-6">
-                    {inputMethod === 'type' && '✍️ Type Your Problem'}
-                    {inputMethod === 'upload' && '📄 Upload Document'}
-                    {inputMethod === 'camera' && '📸 Capture Problem'}
-                  </h2>
-                  
-                  {renderInputMethod()}
-                  
-                  <div className="mt-6 flex gap-4">
-                    <button
-                      onClick={handleSolveProblem}
-                      disabled={!problemText.trim() || isProcessing}
-                      className="flex-1 bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="animate-spin" size={20} />
-                          Solving Problem...
-                        </>
-                      ) : (
-                        <>
-                          <Calculator size={20} />
-                          Solve Problem
-                        </>
-                      )}
-                    </button>
-                    
-                    {problemText && (
-                      <button
-                        onClick={() => {
-                          setProblemText('');
-                          setSelectedFile(null);
-                        }}
-                        className="px-6 py-4 bg-white/10 border border-gray-600 text-white rounded-xl font-semibold hover:bg-white/20 transition-all"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Features Info */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl p-4">
-                    <div className="text-2xl mb-2">⚡</div>
-                    <h3 className="font-semibold text-white mb-1">Instant Solutions</h3>
-                    <p className="text-sm text-gray-300">Get answers in seconds with step-by-step explanations</p>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-green-500/20 to-teal-500/20 border border-green-500/30 rounded-xl p-4">
-                    <div className="text-2xl mb-2">🎯</div>
-                    <h3 className="font-semibold text-white mb-1">High Accuracy</h3>
-                    <p className="text-sm text-gray-300">95%+ accuracy across all subjects and grade levels</p>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl p-4">
-                    <div className="text-2xl mb-2">💬</div>
-                    <h3 className="font-semibold text-white mb-1">Ask Questions</h3>
-                    <p className="text-sm text-gray-300">Chat with AI for doubts and concept clarification</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {viewMode === 'solution' && renderSolution()}
-            {viewMode === 'chat' && renderChat()}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
