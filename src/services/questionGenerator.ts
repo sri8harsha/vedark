@@ -38,11 +38,15 @@ interface ProblemGenerationResult {
 }
 
 interface SolutionGenerationResult {
-  steps: string[];
+  steps?: string[];
   hasError: boolean;
   errorStep?: number;
   correctAnswer: number | string | boolean;
   mistakeType?: string;
+  options?: { id: string; text: string; isCorrect: boolean; explanation?: string }[];
+  blanks?: string[];
+  matchingPairs?: { question: string; answer: string }[];
+  orderingItems?: string[];
 }
 
 interface ExplanationGenerationResult {
@@ -91,11 +95,14 @@ class QuestionGenerator {
     const characterContext = this.getCharacterContext(request.opponentId || 'iron-man');
     const gradeContext = this.getGradeContext(request.grade, request.subject);
     const topic = request.topic || 'a relevant topic from the curriculum';
+    const format = request.format || 'catch-mistake';
+    
+    const formatInstructions = this.getFormatInstructions(format, request.grade);
     
     const prompt = `
 You are creating an educational problem for a Grade ${request.grade} student studying ${request.subject}. 
 
-Character Context: The problem should be presented as if ${characterContext.character} needs help solving it. Use ${characterContext.character}'s world and scenarios but keep the academic content appropriate for Grade ${request.grade}.
+Character Context: The problem should be presented as if ${characterContext.character} needs help solving it. Use simple, age-appropriate scenarios that a Grade ${request.grade} student can understand.
 
 Requirements:
 - Grade Level: Strictly Grade ${request.grade} curriculum level - not easier, not harder
@@ -103,14 +110,18 @@ Requirements:
 - Difficulty: ${request.difficulty.toUpperCase()} complexity for Grade ${request.grade} level
 - Character Theme: Frame the problem as ${characterContext.character} asking for help
 - Topic Focus: ${topic}
+- Format: ${format.toUpperCase()}
 
-Character-Specific Guidelines:
+Character-Specific Guidelines (use simple concepts for young children):
 ${this.getCharacterSpecificGuidelines(request.opponentId || 'iron-man')}
+
+Format Instructions:
+${formatInstructions}
 
 Generate a single problem that ${characterContext.character} would realistically need help with.
 
 Example Format:
-"${characterContext.character} is [doing character-appropriate activity] and needs to [solve specific problem]. Help [him/her] calculate..."
+"${characterContext.character} is [doing simple activity] and needs to [solve simple problem]. Help [him/her] figure out..."
 
 Problem: [Generate the actual ${request.subject} problem here]
 
@@ -131,8 +142,12 @@ Respond in JSON format:
     const errorRate = this.getErrorRateByDifficulty(request.difficulty);
     const shouldHaveError = Math.random() < errorRate;
     const mistakeType = this.getMistakeTypeByDifficulty(request.difficulty);
+    const format = request.format || 'catch-mistake';
     
-    const prompt = `
+    let prompt = '';
+    
+    if (format === 'catch-mistake') {
+      prompt = `
 For this problem: ${problemResult.problem}
 
 Generate a step-by-step solution that ${shouldHaveError ? `contains ${mistakeType} for ${request.difficulty} level` : 'is completely correct'}:
@@ -168,6 +183,126 @@ Respond in JSON format:
   "mistakeType": "${shouldHaveError ? mistakeType : 'none'}"
 }
 `;
+    } else if (format === 'multiple-choice') {
+      prompt = `
+For this problem: ${problemResult.problem}
+
+Generate 4 multiple choice options for Grade ${request.grade} students:
+
+Requirements:
+- Create 4 options (A, B, C, D)
+- Only ONE correct answer
+- Make distractors realistic but clearly wrong for Grade ${request.grade} level
+- Include explanations for why each option is correct/incorrect
+- Focus on testing understanding of the specific topic
+- Use simple, age-appropriate language
+
+Respond in JSON format:
+{
+  "options": [
+    {"id": "A", "text": "Option A", "isCorrect": false, "explanation": "Why this is wrong"},
+    {"id": "B", "text": "Option B", "isCorrect": true, "explanation": "Why this is correct"},
+    {"id": "C", "text": "Option C", "isCorrect": false, "explanation": "Why this is wrong"},
+    {"id": "D", "text": "Option D", "isCorrect": false, "explanation": "Why this is wrong"}
+  ],
+  "correctAnswer": "B",
+  "hasError": false
+}
+`;
+    } else if (format === 'true-false') {
+      prompt = `
+For this problem: ${problemResult.problem}
+
+Generate 5 true/false statements for Grade ${request.grade} students:
+
+Requirements:
+- Create 5 true/false statements
+- Mix true and false statements (60% true, 40% false)
+- Make false statements contain common misconceptions for Grade ${request.grade} level
+- Each statement should test understanding of the specific topic
+- Use simple, age-appropriate language
+- Provide explanations for why each statement is true or false
+
+Respond in JSON format:
+{
+  "options": [
+    {"id": "1", "text": "Statement 1", "isCorrect": true, "explanation": "Why this is true"},
+    {"id": "2", "text": "Statement 2", "isCorrect": false, "explanation": "Why this is false"},
+    {"id": "3", "text": "Statement 3", "isCorrect": true, "explanation": "Why this is true"},
+    {"id": "4", "text": "Statement 4", "isCorrect": false, "explanation": "Why this is false"},
+    {"id": "5", "text": "Statement 5", "isCorrect": true, "explanation": "Why this is true"}
+  ],
+  "correctAnswer": "TTFTT",
+  "hasError": false
+}
+`;
+    } else if (format === 'fill-blank') {
+      prompt = `
+For this problem: ${problemResult.problem}
+
+Generate fill-in-the-blank questions for Grade ${request.grade} students:
+
+Requirements:
+- Create 3-5 blanks in a paragraph or sentence
+- Focus on key vocabulary and concepts from the topic
+- Provide word bank with extra options to increase difficulty
+- Make blanks test understanding, not just memorization
+- Use simple, age-appropriate language
+- Include the correct answers
+
+Respond in JSON format:
+{
+  "blanks": ["word1", "word2", "word3"],
+  "correctAnswer": "word1,word2,word3",
+  "hasError": false
+}
+`;
+    } else if (format === 'matching') {
+      prompt = `
+For this problem: ${problemResult.problem}
+
+Generate matching pairs for Grade ${request.grade} students:
+
+Requirements:
+- Create 5-7 pairs of related items
+- Mix easy and challenging matches
+- Include one extra item to make it more challenging
+- Focus on relationships and connections within the topic
+- Use simple, age-appropriate language
+- Include the correct matching
+
+Respond in JSON format:
+{
+  "matchingPairs": [
+    {"question": "Item 1", "answer": "Match A"},
+    {"question": "Item 2", "answer": "Match B"},
+    {"question": "Item 3", "answer": "Match C"}
+  ],
+  "correctAnswer": "1A,2B,3C",
+  "hasError": false
+}
+`;
+    } else if (format === 'ordering') {
+      prompt = `
+For this problem: ${problemResult.problem}
+
+Generate ordering items for Grade ${request.grade} students:
+
+Requirements:
+- Create 4-6 items that need to be put in correct sequence
+- Could be steps in a process, chronological order, or logical sequence
+- Make the order meaningful to the topic being studied
+- Use simple, age-appropriate language
+- Include the correct order
+
+Respond in JSON format:
+{
+  "orderingItems": ["First step", "Second step", "Third step", "Fourth step"],
+  "correctAnswer": "1,2,3,4",
+  "hasError": false
+}
+`;
+    }
 
     const response = await this.makeAPIRequest(prompt);
     return JSON.parse(response);
@@ -175,14 +310,16 @@ Respond in JSON format:
 
   private async generateExplanation(request: QuestionRequest, problemResult: ProblemGenerationResult, solutionResult: SolutionGenerationResult): Promise<ExplanationGenerationResult> {
     const characterContext = this.getCharacterContext(request.opponentId || 'iron-man');
+    const ageAppropriate = request.grade <= 3 ? 'Use very simple language that a young child can understand. Keep sentences short and clear.' : 'Use age-appropriate language and explanations.';
     
     const prompt = `
-For this problem and solution:
-Problem: ${problemResult.problem}
-Solution: ${solutionResult.steps.join('\n')}
+For this problem: ${problemResult.problem}
+Solution: ${solutionResult.steps?.join('\n') || 'No steps provided'}
 Correct Answer: ${solutionResult.correctAnswer}
 
 Generate an educational explanation appropriate for Grade ${request.grade} students:
+
+${ageAppropriate}
 
 ${solutionResult.hasError ? `
 If the solution was INCORRECT:
@@ -218,7 +355,7 @@ Respond in JSON format:
     
     const prompt = `
 For this problem: ${problemResult.problem}
-With this solution showing: ${solutionResult.steps.join('\n')}
+With this solution showing: ${solutionResult.steps?.join('\n') || 'No steps provided'}
 
 Generate a helpful hint for a Grade ${request.grade} student that:
 - Doesn't give away the answer
@@ -245,35 +382,65 @@ Respond in JSON format:
     explanationResult: ExplanationGenerationResult, 
     hintResult: HintGenerationResult
   ): GeneratedQuestion {
-    return {
+    const format = request.format || 'catch-mistake';
+    
+    const baseQuestion = {
       id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       question: problemResult.problem,
       subject: request.subject,
       grade: request.grade,
       topic: problemResult.topic,
-      format: request.format || 'catch-mistake',
-      steps: solutionResult.steps,
+      format: format as any,
       correctAnswer: solutionResult.correctAnswer,
       hasError: solutionResult.hasError,
       errorStep: solutionResult.errorStep,
       explanation: explanationResult.explanation,
       difficulty: request.difficulty,
       storyContext: problemResult.storyContext,
-      hints: hintResult.hints,
-      characterVoice: explanationResult.characterVoice
+      hints: hintResult.hints
     };
+
+    // Add format-specific fields
+    if (format === 'catch-mistake') {
+      return {
+        ...baseQuestion,
+        steps: solutionResult.steps
+      };
+    } else if (format === 'multiple-choice' || format === 'true-false') {
+      return {
+        ...baseQuestion,
+        options: solutionResult.options
+      };
+    } else if (format === 'fill-blank') {
+      return {
+        ...baseQuestion,
+        blanks: solutionResult.blanks
+      };
+    } else if (format === 'matching') {
+      return {
+        ...baseQuestion,
+        matchingPairs: solutionResult.matchingPairs
+      };
+    } else if (format === 'ordering') {
+      return {
+        ...baseQuestion,
+        orderingItems: solutionResult.orderingItems
+      };
+    }
+
+    return baseQuestion;
   }
 
   private getCharacterSpecificGuidelines(opponentId: string): string {
     const guidelines = {
-      'iron-man': 'Use technology, engineering, workshop calculations, arc reactor scenarios, Stark Industries problems',
-      'spider-man': 'Use physics, web mechanics, building heights, trajectory problems, New York City scenarios',
-      'batman': 'Use detective work, crime analysis, Gotham City scenarios, logical deduction, Wayne Enterprises',
-      'wonder-woman': 'Use ancient history, mythology, warrior training, Themyscira settings, Amazonian scenarios',
-      'hulk': 'Use strength calculations, scientific transformations, anger management data, gamma radiation',
-      'captain-america': 'Use historical events, shield physics, tactical planning, WWII scenarios, leadership',
-      'doctor-strange': 'Use mystical dimensions, time calculations, magical formulas, dimensional travel',
-      'thanos': 'Use cosmic scales, universal calculations, space scenarios, infinity stone problems'
+      'iron-man': 'Use simple counting, building things, helping people, flying, making things work, fixing problems',
+      'spider-man': 'Use simple counting, helping people, swinging around, catching bad guys, being a hero',
+      'batman': 'Use simple counting, helping people, solving problems, being smart, protecting the city',
+      'wonder-woman': 'Use simple counting, helping people, being strong, being kind, protecting others',
+      'hulk': 'Use simple counting, being strong, helping people, fixing things, solving problems',
+      'captain-america': 'Use simple counting, helping people, being brave, working with friends, protecting others',
+      'doctor-strange': 'Use simple counting, helping people, solving puzzles, being smart, making things better',
+      'thanos': 'Use simple counting, collecting things, solving problems, being strong, making decisions'
     };
 
     return guidelines[opponentId as keyof typeof guidelines] || guidelines['iron-man'];
@@ -530,6 +697,31 @@ Respond in JSON format:
       hints: ["Think about the problem step by step", "Check your calculations carefully", "Make sure you understand what's being asked"],
       storyContext: `${characterContext.character} needs your help with this problem!`
     };
+  }
+
+  private getFormatInstructions(format: string, grade: number): string {
+    const ageAppropriate = grade <= 3 ? 'Use very simple language and concepts that young children can understand.' : 'Use age-appropriate language and concepts.';
+    
+    switch (format) {
+      case 'multiple-choice':
+        return `Create a multiple choice question with 4 options (A, B, C, D). ${ageAppropriate} Make it fun and engaging for the character.`;
+      
+      case 'true-false':
+        return `Create 5 true/false statements about the topic. ${ageAppropriate} Mix true and false statements to test understanding.`;
+      
+      case 'fill-blank':
+        return `Create a fill-in-the-blank question with 3-5 blanks. ${ageAppropriate} Focus on key vocabulary and concepts.`;
+      
+      case 'matching':
+        return `Create 5-7 matching pairs of related items. ${ageAppropriate} Include one extra item to make it challenging.`;
+      
+      case 'ordering':
+        return `Create 4-6 items that need to be put in correct order. ${ageAppropriate} Could be steps, sequence, or logical order.`;
+      
+      case 'catch-mistake':
+      default:
+        return `Create a problem with a step-by-step solution. ${ageAppropriate} The solution should either be correct or contain one mistake for students to find.`;
+    }
   }
 
   async generateQuestionSet(request: QuestionRequest, count: number = 5): Promise<GeneratedQuestion[]> {
