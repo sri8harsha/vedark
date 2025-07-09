@@ -62,6 +62,579 @@ interface ChatMessage {
 type InputMethod = 'type' | 'upload' | 'camera' | 'document';
 type ViewMode = 'setup' | 'input' | 'solution' | 'chat';
 
+// Setup View Component
+const SetupView: React.FC<{
+  onSetupComplete: (profile: StudentProfile) => void;
+  isAPIConfigured: () => boolean;
+}> = ({ onSetupComplete, isAPIConfigured }) => {
+  const [tempProfile, setTempProfile] = useState<Partial<StudentProfile>>({
+    name: '',
+    grade: 3,
+    favoriteSubjects: [],
+    learningStyle: 'visual'
+  });
+
+  const subjects = ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Art'];
+  const learningStyles = [
+    { value: 'visual', label: 'Visual (Pictures & Diagrams)', icon: '👁️' },
+    { value: 'auditory', label: 'Auditory (Listening & Speaking)', icon: '👂' },
+    { value: 'kinesthetic', label: 'Hands-on (Touch & Movement)', icon: '✋' },
+    { value: 'reading', label: 'Reading & Writing', icon: '📚' }
+  ];
+
+  const handleSetupComplete = () => {
+    if (tempProfile.name && tempProfile.grade) {
+      onSetupComplete(tempProfile as StudentProfile);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-8">
+      <div className="text-center mb-8">
+        <div className="text-6xl mb-4">🎓</div>
+        <h2 className="text-3xl font-bold text-white mb-2">Let's Get to Know You!</h2>
+        <p className="text-gray-300">This helps us provide age-appropriate solutions and explanations</p>
+      </div>
+
+      <div className="bg-white/5 border border-gray-600 rounded-xl p-8 space-y-6">
+        {/* Name Input */}
+        <div>
+          <label className="block text-white font-semibold mb-2">What's your name?</label>
+          <input
+            type="text"
+            value={tempProfile.name || ''}
+            onChange={(e) => setTempProfile(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="Enter your first name"
+            className="w-full p-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:bg-white/15 transition-all"
+          />
+        </div>
+
+        {/* Grade Selection */}
+        <div>
+          <label className="block text-white font-semibold mb-2">What grade are you in?</label>
+          <div className="grid grid-cols-4 gap-3">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((grade) => (
+              <button
+                key={grade}
+                onClick={() => setTempProfile(prev => ({ ...prev, grade }))}
+                className={`p-3 rounded-lg font-semibold transition-all ${
+                  tempProfile.grade === grade
+                    ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                }`}
+              >
+                Grade {grade}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Favorite Subjects */}
+        <div>
+          <label className="block text-white font-semibold mb-2">What subjects do you like? (Select all that apply)</label>
+          <div className="grid grid-cols-2 gap-3">
+            {subjects.map((subject) => (
+              <button
+                key={subject}
+                onClick={() => {
+                  const current = tempProfile.favoriteSubjects || [];
+                  const updated = current.includes(subject)
+                    ? current.filter(s => s !== subject)
+                    : [...current, subject];
+                  setTempProfile(prev => ({ ...prev, favoriteSubjects: updated }));
+                }}
+                className={`p-3 rounded-lg font-medium transition-all text-left ${
+                  tempProfile.favoriteSubjects?.includes(subject)
+                    ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                }`}
+              >
+                {subject}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Learning Style */}
+        <div>
+          <label className="block text-white font-semibold mb-2">How do you learn best?</label>
+          <div className="space-y-3">
+            {learningStyles.map((style) => (
+              <button
+                key={style.value}
+                onClick={() => setTempProfile(prev => ({ ...prev, learningStyle: style.value as any }))}
+                className={`w-full p-4 rounded-lg font-medium transition-all text-left flex items-center gap-3 ${
+                  tempProfile.learningStyle === style.value
+                    ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                }`}
+              >
+                <span className="text-2xl">{style.icon}</span>
+                <span>{style.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Complete Setup Button */}
+        <button
+          onClick={handleSetupComplete}
+          disabled={!tempProfile.name || !tempProfile.grade}
+          className="w-full bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+        >
+          <GraduationCap size={24} />
+          Start Learning!
+        </button>
+      </div>
+
+      {/* API Status */}
+      <div className={`text-center p-4 rounded-lg ${
+        isAPIConfigured() 
+          ? 'bg-green-500/20 border border-green-500/50 text-green-400'
+          : 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400'
+      }`}>
+        {isAPIConfigured() 
+          ? '✅ OpenAI API configured - Dynamic questions enabled'
+          : '⚠️ OpenAI API not configured - Using fallback questions'
+        }
+      </div>
+    </div>
+  );
+};
+
+// Input Method Component
+const InputMethodView: React.FC<{
+  inputMethod: InputMethod;
+  problemText: string;
+  setProblemText: (text: string) => void;
+  selectedFile: File | null;
+  setSelectedFile: (file: File | null) => void;
+  isListening: boolean;
+  startVoiceInput: () => void;
+  handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleCameraCapture: (event: React.ChangeEvent<HTMLInputElement>) => void;
+}> = ({
+  inputMethod,
+  problemText,
+  setProblemText,
+  selectedFile,
+  setSelectedFile,
+  isListening,
+  startVoiceInput,
+  handleFileUpload,
+  handleCameraCapture
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  switch (inputMethod) {
+    case 'type':
+      return (
+        <div className="space-y-4">
+          <div className="relative">
+            <textarea
+              value={problemText}
+              onChange={(e) => setProblemText(e.target.value)}
+              placeholder="Type your problem here... (e.g., 'Solve for x: 2x + 5 = 13')"
+              className="w-full h-40 p-4 bg-white/5 border border-gray-600 rounded-xl text-white placeholder-gray-400 resize-none focus:outline-none focus:border-teal-400 focus:bg-white/10 transition-all"
+            />
+            <div className="absolute bottom-4 right-4 flex gap-2">
+              <button
+                onClick={startVoiceInput}
+                className={`p-2 rounded-lg transition-all ${
+                  isListening 
+                    ? 'bg-red-500 text-white animate-pulse' 
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between text-sm text-gray-400">
+            <span>{problemText.length}/1000 characters</span>
+          </div>
+        </div>
+      );
+      
+    case 'upload':
+      return (
+        <div className="space-y-4">
+          <div 
+            className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-teal-400 transition-all cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload size={48} className="mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-semibold text-white mb-2">Upload Document</h3>
+            <p className="text-gray-400 mb-4">
+              Drag and drop or click to upload PDF, DOC, or image files
+            </p>
+            <div className="text-sm text-gray-500">
+              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max 10MB)
+            </div>
+          </div>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          
+          {selectedFile && (
+            <div className="bg-white/5 border border-gray-600 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <FileText className="text-teal-400" size={20} />
+                <div className="flex-1">
+                  <div className="text-white font-medium">{selectedFile.name}</div>
+                  <div className="text-sm text-gray-400">
+                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedFile(null)}
+                  className="text-red-400 hover:text-red-300"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+      
+    case 'camera':
+      return (
+        <div className="space-y-4">
+          <div 
+            className="bg-gradient-to-br from-purple-500/20 to-teal-500/20 border border-teal-500/30 rounded-xl p-8 text-center cursor-pointer hover:from-purple-500/30 hover:to-teal-500/30 transition-all"
+            onClick={() => cameraInputRef.current?.click()}
+          >
+            <Camera size={48} className="mx-auto mb-4 text-teal-400" />
+            <h3 className="text-lg font-semibold text-white mb-2">Take Photo</h3>
+            <p className="text-gray-300 mb-4">
+              Capture your homework problem with your camera
+            </p>
+            <div className="text-sm text-gray-400">
+              Make sure the text is clear and well-lit
+            </div>
+          </div>
+          
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleCameraCapture}
+            className="hidden"
+          />
+          
+          <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4">
+            <h4 className="text-blue-400 font-semibold mb-2">📸 Photo Tips</h4>
+            <ul className="text-sm text-gray-300 space-y-1">
+              <li>• Ensure good lighting</li>
+              <li>• Keep the camera steady</li>
+              <li>• Make sure text is clearly visible</li>
+              <li>• Avoid shadows and glare</li>
+            </ul>
+          </div>
+        </div>
+      );
+      
+    default:
+      return null;
+  }
+};
+
+// Solution View Component
+const SolutionView: React.FC<{
+  currentSolution: Solution | null;
+  showSteps: boolean;
+  setShowSteps: (show: boolean) => void;
+  setViewMode: (mode: ViewMode) => void;
+  setProblemText: (text: string) => void;
+  setCurrentSolution: (solution: Solution | null) => void;
+  copyToClipboard: (text: string) => void;
+  exportSolution: () => void;
+}> = ({
+  currentSolution,
+  showSteps,
+  setShowSteps,
+  setViewMode,
+  setProblemText,
+  setCurrentSolution,
+  copyToClipboard,
+  exportSolution
+}) => {
+  if (!currentSolution) return null;
+  
+  return (
+    <div className="space-y-6">
+      {/* Solution Header */}
+      <div className="bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 rounded-xl p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="text-green-400" size={24} />
+            <div>
+              <h3 className="text-xl font-bold text-white">Solution Found!</h3>
+              <div className="flex items-center gap-4 text-sm text-gray-300 mt-1">
+                <span className="flex items-center gap-1">
+                  <Clock size={14} />
+                  {currentSolution.timeToSolve}s
+                </span>
+                <span className="flex items-center gap-1">
+                  <Star size={14} />
+                  {currentSolution.confidence}% confidence
+                </span>
+                <span className="px-2 py-1 bg-blue-500/20 rounded-full text-xs">
+                  Grade {currentSolution.gradeLevel} • {currentSolution.subject}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={() => copyToClipboard(currentSolution.answer)}
+              className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
+              title="Copy Answer"
+            >
+              <Copy size={16} className="text-gray-400" />
+            </button>
+            <button
+              onClick={exportSolution}
+              className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
+              title="Export Solution"
+            >
+              <Download size={16} className="text-gray-400" />
+            </button>
+            <button
+              onClick={() => {/* Share functionality */}}
+              className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
+              title="Share Solution"
+            >
+              <Share2 size={16} className="text-gray-400" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="bg-black/20 rounded-lg p-4 mb-4">
+          <h4 className="text-sm font-semibold text-gray-400 mb-2">PROBLEM:</h4>
+          <p className="text-white">{currentSolution.problem}</p>
+        </div>
+        
+        <div className="bg-gradient-to-r from-teal-500/20 to-green-500/20 rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-teal-400 mb-2">ANSWER:</h4>
+          <p className="text-2xl font-bold text-white">{currentSolution.answer}</p>
+        </div>
+      </div>
+
+      {/* Step-by-Step Solution */}
+      <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Calculator className="text-purple-400" size={20} />
+            Step-by-Step Solution
+          </h3>
+          <button
+            onClick={() => setShowSteps(!showSteps)}
+            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-all"
+          >
+            {showSteps ? <EyeOff size={16} /> : <Eye size={16} />}
+            {showSteps ? 'Hide' : 'Show'} Steps
+          </button>
+        </div>
+        
+        {showSteps && (
+          <div className="space-y-4">
+            {currentSolution.steps.map((step, index) => (
+              <div key={index} className="flex gap-4">
+                <div className="flex-shrink-0 w-8 h-8 bg-purple-500/20 border border-purple-500/50 rounded-full flex items-center justify-center text-sm font-bold text-purple-400">
+                  {index + 1}
+                </div>
+                <div className="flex-1 pt-1">
+                  <p className="text-gray-300">{step}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Explanation */}
+      <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
+        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+          <Lightbulb className="text-yellow-400" size={20} />
+          Explanation
+        </h3>
+        <p className="text-gray-300 leading-relaxed">{currentSolution.explanation}</p>
+      </div>
+
+      {/* Alternative Methods */}
+      {currentSolution.alternativeMethods && (
+        <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-white mb-4">Alternative Methods</h3>
+          <div className="space-y-3">
+            {currentSolution.alternativeMethods.map((method, index) => (
+              <div key={index} className="flex gap-3">
+                <div className="flex-shrink-0 w-6 h-6 bg-teal-500/20 border border-teal-500/50 rounded-full flex items-center justify-center text-xs font-bold text-teal-400">
+                  {index + 1}
+                </div>
+                <p className="text-gray-300 pt-0.5">{method}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Practice Problems */}
+      {currentSolution.practiceProblems && (
+        <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-white mb-4">Practice Similar Problems</h3>
+          <div className="space-y-3">
+            {currentSolution.practiceProblems.map((problem, index) => (
+              <div key={index} className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-all cursor-pointer">
+                <p className="text-gray-300">{problem}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex gap-4">
+        <button
+          onClick={() => setViewMode('chat')}
+          className="flex-1 bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-teal-700 transition-all flex items-center justify-center gap-2"
+        >
+          <MessageCircle size={20} />
+          Ask Questions
+        </button>
+        <button
+          onClick={() => {
+            setViewMode('input');
+            setProblemText('');
+            setCurrentSolution(null);
+          }}
+          className="flex-1 bg-white/10 border border-gray-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/20 transition-all"
+        >
+          Solve Another Problem
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Chat View Component
+const ChatView: React.FC<{
+  chatMessages: ChatMessage[];
+  chatInput: string;
+  setChatInput: (input: string) => void;
+  handleChatSend: () => void;
+  studentProfile: StudentProfile | null;
+}> = ({
+  chatMessages,
+  chatInput,
+  setChatInput,
+  handleChatSend,
+  studentProfile
+}) => {
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div className="space-y-6">
+      {/* Chat Header */}
+      <div className="bg-gradient-to-r from-purple-500/20 to-teal-500/20 border border-purple-500/30 rounded-xl p-6">
+        <h3 className="text-xl font-bold text-white mb-2">Ask Your Doubts</h3>
+        <p className="text-gray-300">Get instant help with concepts, explanations, and related questions</p>
+        {studentProfile && (
+          <div className="mt-3 text-sm text-teal-400">
+            Answers tailored for Grade {studentProfile.grade} level
+          </div>
+        )}
+      </div>
+
+      {/* Chat Messages */}
+      <div className="bg-white/5 border border-gray-600 rounded-xl p-6 h-96 overflow-y-auto">
+        {chatMessages.length === 0 ? (
+          <div className="text-center text-gray-400 mt-20">
+            <MessageCircle size={48} className="mx-auto mb-4 opacity-50" />
+            <p>Start a conversation! Ask me anything about the problem.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {chatMessages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] p-3 rounded-lg ${
+                    message.type === 'user'
+                      ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
+                      : 'bg-white/10 text-gray-300'
+                  }`}
+                >
+                  <p>{message.content}</p>
+                  <div className="text-xs opacity-70 mt-1">
+                    {message.timestamp.toLocaleTimeString()}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* Chat Input */}
+      <div className="flex gap-3">
+        <input
+          type="text"
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleChatSend()}
+          placeholder="Ask about concepts, request explanations, or get help..."
+          className="flex-1 p-3 bg-white/5 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:bg-white/10 transition-all"
+        />
+        <button
+          onClick={handleChatSend}
+          disabled={!chatInput.trim()}
+          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-teal-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <Send size={16} />
+          Send
+        </button>
+      </div>
+
+      {/* Quick Questions */}
+      <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
+        <h4 className="text-lg font-semibold text-white mb-4">Quick Questions</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[
+            "Can you explain this concept differently?",
+            "What are the key formulas I need?",
+            "How do I remember this method?",
+            "Can you give me similar examples?",
+            "What's the real-world application?",
+            "Where might I make mistakes?"
+          ].map((question, index) => (
+            <button
+              key={index}
+              onClick={() => setChatInput(question)}
+              className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition-all text-sm"
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('setup');
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
@@ -76,10 +649,6 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
   const [showSteps, setShowSteps] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [recentSolutions, setRecentSolutions] = useState<Solution[]>([]);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Check if OpenAI API is configured
   const isAPIConfigured = () => {
@@ -409,517 +978,9 @@ OUTPUT FORMAT (JSON):
     URL.revokeObjectURL(url);
   };
 
-  const renderSetup = () => {
-    const [tempProfile, setTempProfile] = useState<Partial<StudentProfile>>({
-      name: '',
-      grade: 3,
-      favoriteSubjects: [],
-      learningStyle: 'visual'
-    });
-
-    const subjects = ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Art'];
-    const learningStyles = [
-      { value: 'visual', label: 'Visual (Pictures & Diagrams)', icon: '👁️' },
-      { value: 'auditory', label: 'Auditory (Listening & Speaking)', icon: '👂' },
-      { value: 'kinesthetic', label: 'Hands-on (Touch & Movement)', icon: '✋' },
-      { value: 'reading', label: 'Reading & Writing', icon: '📚' }
-    ];
-
-    const handleSetupComplete = () => {
-      if (tempProfile.name && tempProfile.grade) {
-        setStudentProfile(tempProfile as StudentProfile);
-        setViewMode('input');
-      }
-    };
-
-    return (
-      <div className="max-w-2xl mx-auto space-y-8">
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-4">🎓</div>
-          <h2 className="text-3xl font-bold text-white mb-2">Let's Get to Know You!</h2>
-          <p className="text-gray-300">This helps us provide age-appropriate solutions and explanations</p>
-        </div>
-
-        <div className="bg-white/5 border border-gray-600 rounded-xl p-8 space-y-6">
-          {/* Name Input */}
-          <div>
-            <label className="block text-white font-semibold mb-2">What's your name?</label>
-            <input
-              type="text"
-              value={tempProfile.name || ''}
-              onChange={(e) => setTempProfile(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter your first name"
-              className="w-full p-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:bg-white/15 transition-all"
-            />
-          </div>
-
-          {/* Grade Selection */}
-          <div>
-            <label className="block text-white font-semibold mb-2">What grade are you in?</label>
-            <div className="grid grid-cols-4 gap-3">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((grade) => (
-                <button
-                  key={grade}
-                  onClick={() => setTempProfile(prev => ({ ...prev, grade }))}
-                  className={`p-3 rounded-lg font-semibold transition-all ${
-                    tempProfile.grade === grade
-                      ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                  }`}
-                >
-                  Grade {grade}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Favorite Subjects */}
-          <div>
-            <label className="block text-white font-semibold mb-2">What subjects do you like? (Select all that apply)</label>
-            <div className="grid grid-cols-2 gap-3">
-              {subjects.map((subject) => (
-                <button
-                  key={subject}
-                  onClick={() => {
-                    const current = tempProfile.favoriteSubjects || [];
-                    const updated = current.includes(subject)
-                      ? current.filter(s => s !== subject)
-                      : [...current, subject];
-                    setTempProfile(prev => ({ ...prev, favoriteSubjects: updated }));
-                  }}
-                  className={`p-3 rounded-lg font-medium transition-all text-left ${
-                    tempProfile.favoriteSubjects?.includes(subject)
-                      ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                  }`}
-                >
-                  {subject}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Learning Style */}
-          <div>
-            <label className="block text-white font-semibold mb-2">How do you learn best?</label>
-            <div className="space-y-3">
-              {learningStyles.map((style) => (
-                <button
-                  key={style.value}
-                  onClick={() => setTempProfile(prev => ({ ...prev, learningStyle: style.value as any }))}
-                  className={`w-full p-4 rounded-lg font-medium transition-all text-left flex items-center gap-3 ${
-                    tempProfile.learningStyle === style.value
-                      ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                  }`}
-                >
-                  <span className="text-2xl">{style.icon}</span>
-                  <span>{style.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Complete Setup Button */}
-          <button
-            onClick={handleSetupComplete}
-            disabled={!tempProfile.name || !tempProfile.grade}
-            className="w-full bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-          >
-            <GraduationCap size={24} />
-            Start Learning!
-          </button>
-        </div>
-
-        {/* API Status */}
-        <div className={`text-center p-4 rounded-lg ${
-          isAPIConfigured() 
-            ? 'bg-green-500/20 border border-green-500/50 text-green-400'
-            : 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400'
-        }`}>
-          {isAPIConfigured() 
-            ? '✅ OpenAI API configured - Dynamic questions enabled'
-            : '⚠️ OpenAI API not configured - Using fallback questions'
-          }
-        </div>
-      </div>
-    );
-  };
-
-  const renderInputMethod = () => {
-    switch (inputMethod) {
-      case 'type':
-        return (
-          <div className="space-y-4">
-            <div className="relative">
-              <textarea
-                value={problemText}
-                onChange={(e) => setProblemText(e.target.value)}
-                placeholder={`Type your ${selectedSubject.toLowerCase()} problem here... (e.g., 'Solve for x: 2x + 5 = 13')`}
-                className="w-full h-40 p-4 bg-white/5 border border-gray-600 rounded-xl text-white placeholder-gray-400 resize-none focus:outline-none focus:border-teal-400 focus:bg-white/10 transition-all"
-              />
-              <div className="absolute bottom-4 right-4 flex gap-2">
-                <button
-                  onClick={startVoiceInput}
-                  className={`p-2 rounded-lg transition-all ${
-                    isListening 
-                      ? 'bg-red-500 text-white animate-pulse' 
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  {isListening ? <MicOff size={16} /> : <Mic size={16} />}
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between text-sm text-gray-400">
-              <span>{problemText.length}/1000 characters</span>
-              <span>Grade {studentProfile?.grade} • {selectedSubject}</span>
-            </div>
-          </div>
-        );
-        
-      case 'upload':
-        return (
-          <div className="space-y-4">
-            <div 
-              className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-teal-400 transition-all cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload size={48} className="mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-semibold text-white mb-2">Upload Document</h3>
-              <p className="text-gray-400 mb-4">
-                Drag and drop or click to upload PDF, DOC, or image files
-              </p>
-              <div className="text-sm text-gray-500">
-                Supported formats: PDF, DOC, DOCX, JPG, PNG (Max 10MB)
-              </div>
-            </div>
-            
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            
-            {selectedFile && (
-              <div className="bg-white/5 border border-gray-600 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <FileText className="text-teal-400" size={20} />
-                  <div className="flex-1">
-                    <div className="text-white font-medium">{selectedFile.name}</div>
-                    <div className="text-sm text-gray-400">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelectedFile(null)}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-        
-      case 'camera':
-        return (
-          <div className="space-y-4">
-            <div 
-              className="bg-gradient-to-br from-purple-500/20 to-teal-500/20 border border-teal-500/30 rounded-xl p-8 text-center cursor-pointer hover:from-purple-500/30 hover:to-teal-500/30 transition-all"
-              onClick={() => cameraInputRef.current?.click()}
-            >
-              <Camera size={48} className="mx-auto mb-4 text-teal-400" />
-              <h3 className="text-lg font-semibold text-white mb-2">Take Photo</h3>
-              <p className="text-gray-300 mb-4">
-                Capture your homework problem with your camera
-              </p>
-              <div className="text-sm text-gray-400">
-                Make sure the text is clear and well-lit
-              </div>
-            </div>
-            
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleCameraCapture}
-              className="hidden"
-            />
-            
-            <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4">
-              <h4 className="text-blue-400 font-semibold mb-2">📸 Photo Tips</h4>
-              <ul className="text-sm text-gray-300 space-y-1">
-                <li>• Ensure good lighting</li>
-                <li>• Keep the camera steady</li>
-                <li>• Make sure text is clearly visible</li>
-                <li>• Avoid shadows and glare</li>
-              </ul>
-            </div>
-          </div>
-        );
-        
-      default:
-        return null;
-    }
-  };
-
-  const renderSolution = () => {
-    if (!currentSolution) return null;
-    
-    return (
-      <div className="space-y-6">
-        {/* Solution Header */}
-        <div className="bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 rounded-xl p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="text-green-400" size={24} />
-              <div>
-                <h3 className="text-xl font-bold text-white">Solution Found!</h3>
-                <div className="flex items-center gap-4 text-sm text-gray-300 mt-1">
-                  <span className="flex items-center gap-1">
-                    <Clock size={14} />
-                    {currentSolution.timeToSolve}s
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Star size={14} />
-                    {currentSolution.confidence}% confidence
-                  </span>
-                  <span className="px-2 py-1 bg-blue-500/20 rounded-full text-xs">
-                    Grade {currentSolution.gradeLevel} • {currentSolution.subject}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => copyToClipboard(currentSolution.answer)}
-                className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-                title="Copy Answer"
-              >
-                <Copy size={16} className="text-gray-400" />
-              </button>
-              <button
-                onClick={exportSolution}
-                className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-                title="Export Solution"
-              >
-                <Download size={16} className="text-gray-400" />
-              </button>
-              <button
-                onClick={() => {/* Share functionality */}}
-                className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-                title="Share Solution"
-              >
-                <Share2 size={16} className="text-gray-400" />
-              </button>
-            </div>
-          </div>
-          
-          <div className="bg-black/20 rounded-lg p-4 mb-4">
-            <h4 className="text-sm font-semibold text-gray-400 mb-2">PROBLEM:</h4>
-            <p className="text-white">{currentSolution.problem}</p>
-          </div>
-          
-          <div className="bg-gradient-to-r from-teal-500/20 to-green-500/20 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-teal-400 mb-2">ANSWER:</h4>
-            <p className="text-2xl font-bold text-white">{currentSolution.answer}</p>
-          </div>
-        </div>
-
-        {/* Step-by-Step Solution */}
-        <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Calculator className="text-purple-400" size={20} />
-              Step-by-Step Solution
-            </h3>
-            <button
-              onClick={() => setShowSteps(!showSteps)}
-              className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-all"
-            >
-              {showSteps ? <EyeOff size={16} /> : <Eye size={16} />}
-              {showSteps ? 'Hide' : 'Show'} Steps
-            </button>
-          </div>
-          
-          {showSteps && (
-            <div className="space-y-4">
-              {currentSolution.steps.map((step, index) => (
-                <div key={index} className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-purple-500/20 border border-purple-500/50 rounded-full flex items-center justify-center text-sm font-bold text-purple-400">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 pt-1">
-                    <p className="text-gray-300">{step}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Explanation */}
-        <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-            <Lightbulb className="text-yellow-400" size={20} />
-            Explanation
-          </h3>
-          <p className="text-gray-300 leading-relaxed">{currentSolution.explanation}</p>
-        </div>
-
-        {/* Alternative Methods */}
-        {currentSolution.alternativeMethods && (
-          <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Alternative Methods</h3>
-            <div className="space-y-3">
-              {currentSolution.alternativeMethods.map((method, index) => (
-                <div key={index} className="flex gap-3">
-                  <div className="flex-shrink-0 w-6 h-6 bg-teal-500/20 border border-teal-500/50 rounded-full flex items-center justify-center text-xs font-bold text-teal-400">
-                    {index + 1}
-                  </div>
-                  <p className="text-gray-300 pt-0.5">{method}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Practice Problems */}
-        {currentSolution.practiceProblems && (
-          <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Practice Similar Problems</h3>
-            <div className="space-y-3">
-              {currentSolution.practiceProblems.map((problem, index) => (
-                <div key={index} className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-all cursor-pointer">
-                  <p className="text-gray-300">{problem}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-4">
-          <button
-            onClick={() => setViewMode('chat')}
-            className="flex-1 bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-teal-700 transition-all flex items-center justify-center gap-2"
-          >
-            <MessageCircle size={20} />
-            Ask Questions
-          </button>
-          <button
-            onClick={() => {
-              setViewMode('input');
-              setProblemText('');
-              setCurrentSolution(null);
-            }}
-            className="flex-1 bg-white/10 border border-gray-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/20 transition-all"
-          >
-            Solve Another Problem
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const renderChat = () => {
-    return (
-      <div className="space-y-6">
-        {/* Chat Header */}
-        <div className="bg-gradient-to-r from-purple-500/20 to-teal-500/20 border border-purple-500/30 rounded-xl p-6">
-          <h3 className="text-xl font-bold text-white mb-2">Ask Your Doubts</h3>
-          <p className="text-gray-300">Get instant help with concepts, explanations, and related questions</p>
-          {studentProfile && (
-            <div className="mt-3 text-sm text-teal-400">
-              Answers tailored for Grade {studentProfile.grade} level
-            </div>
-          )}
-        </div>
-
-        {/* Chat Messages */}
-        <div className="bg-white/5 border border-gray-600 rounded-xl p-6 h-96 overflow-y-auto">
-          {chatMessages.length === 0 ? (
-            <div className="text-center text-gray-400 mt-20">
-              <MessageCircle size={48} className="mx-auto mb-4 opacity-50" />
-              <p>Start a conversation! Ask me anything about the problem.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {chatMessages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
-                      message.type === 'user'
-                        ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                        : 'bg-white/10 text-gray-300'
-                    }`}
-                  >
-                    <p>{message.content}</p>
-                    <div className="text-xs opacity-70 mt-1">
-                      {message.timestamp.toLocaleTimeString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Chat Input */}
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleChatSend()}
-            placeholder="Ask about concepts, request explanations, or get help..."
-            className="flex-1 p-3 bg-white/5 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:bg-white/10 transition-all"
-          />
-          <button
-            onClick={handleChatSend}
-            disabled={!chatInput.trim()}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-teal-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <Send size={16} />
-            Send
-          </button>
-        </div>
-
-        {/* Quick Questions */}
-        <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-          <h4 className="text-lg font-semibold text-white mb-4">Quick Questions</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[
-              "Can you explain this concept differently?",
-              "What are the key formulas I need?",
-              "How do I remember this method?",
-              "Can you give me similar examples?",
-              "What's the real-world application?",
-              "Where might I make mistakes?"
-            ].map((question, index) => (
-              <button
-                key={index}
-                onClick={() => setChatInput(question)}
-                className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition-all text-sm"
-              >
-                {question}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+  const handleSetupComplete = (profile: StudentProfile) => {
+    setStudentProfile(profile);
+    setViewMode('input');
   };
 
   return (
@@ -965,7 +1026,12 @@ OUTPUT FORMAT (JSON):
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {viewMode === 'setup' && renderSetup()}
+        {viewMode === 'setup' && (
+          <SetupView 
+            onSetupComplete={handleSetupComplete}
+            isAPIConfigured={isAPIConfigured}
+          />
+        )}
         
         {viewMode !== 'setup' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -1111,7 +1177,17 @@ OUTPUT FORMAT (JSON):
                           {inputMethod === 'camera' && `📸 Capture ${selectedSubject} Problem`}
                         </h2>
                         
-                        {renderInputMethod()}
+                        <InputMethodView
+                          inputMethod={inputMethod}
+                          problemText={problemText}
+                          setProblemText={setProblemText}
+                          selectedFile={selectedFile}
+                          setSelectedFile={setSelectedFile}
+                          isListening={isListening}
+                          startVoiceInput={startVoiceInput}
+                          handleFileUpload={handleFileUpload}
+                          handleCameraCapture={handleCameraCapture}
+                        />
                         
                         <div className="mt-6 flex gap-4">
                           <button
@@ -1171,8 +1247,28 @@ OUTPUT FORMAT (JSON):
                 </div>
               )}
 
-              {viewMode === 'solution' && renderSolution()}
-              {viewMode === 'chat' && renderChat()}
+              {viewMode === 'solution' && (
+                <SolutionView
+                  currentSolution={currentSolution}
+                  showSteps={showSteps}
+                  setShowSteps={setShowSteps}
+                  setViewMode={setViewMode}
+                  setProblemText={setProblemText}
+                  setCurrentSolution={setCurrentSolution}
+                  copyToClipboard={copyToClipboard}
+                  exportSolution={exportSolution}
+                />
+              )}
+
+              {viewMode === 'chat' && (
+                <ChatView
+                  chatMessages={chatMessages}
+                  chatInput={chatInput}
+                  setChatInput={setChatInput}
+                  handleChatSend={handleChatSend}
+                  studentProfile={studentProfile}
+                />
+              )}
             </div>
           </div>
         )}
