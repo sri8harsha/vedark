@@ -1,54 +1,21 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { 
-  Camera, 
-  Upload, 
-  Type, 
-  FileText, 
-  Send, 
-  MessageCircle, 
-  Loader2, 
-  CheckCircle, 
-  AlertCircle,
-  Download,
-  Copy,
-  Share2,
-  Trash2,
-  Eye,
-  EyeOff,
-  Mic,
-  MicOff,
-  ArrowLeft,
-  BookOpen,
-  Calculator,
-  Lightbulb,
-  Clock,
-  Star,
-  User,
-  GraduationCap,
-  Settings
-} from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ArrowLeft, Upload, Camera, Type, MessageCircle, Send, Copy, Download, Share2, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 
-interface StudentProfile {
-  name: string;
-  grade: number;
-  favoriteSubjects: string[];
-  learningStyle: 'visual' | 'auditory' | 'kinesthetic' | 'reading';
+interface HomeworkHelperProps {
+  onBackToHome: () => void;
 }
 
 interface Solution {
   id: string;
-  problem: string;
-  answer: string;
-  steps: string[];
-  explanation: string;
+  question: string;
   subject: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  timeToSolve: number;
+  grade: number;
+  answer: string;
+  explanation: string;
+  steps: string[];
   confidence: number;
-  alternativeMethods?: string[];
-  relatedConcepts?: string[];
-  practiceProblems?: string[];
-  gradeLevel: number;
+  timeToSolve: string;
+  timestamp: Date;
 }
 
 interface ChatMessage {
@@ -56,619 +23,110 @@ interface ChatMessage {
   type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  attachments?: string[];
 }
-
-type InputMethod = 'type' | 'upload' | 'camera' | 'document';
-type ViewMode = 'setup' | 'input' | 'solution' | 'chat';
 
 // Setup View Component
 const SetupView: React.FC<{
-  onSetupComplete: (profile: StudentProfile) => void;
-  isAPIConfigured: () => boolean;
-}> = ({ onSetupComplete, isAPIConfigured }) => {
-  const [tempProfile, setTempProfile] = useState<Partial<StudentProfile>>({
-    name: '',
-    grade: 3,
-    favoriteSubjects: [],
-    learningStyle: 'visual'
-  });
+  onSetupComplete: (grade: number, subject: string) => void;
+}> = ({ onSetupComplete }) => {
+  const [selectedGrade, setSelectedGrade] = useState<number>(5);
+  const [selectedSubject, setSelectedSubject] = useState<string>('math');
 
-  const subjects = ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Art'];
-  const learningStyles = [
-    { value: 'visual', label: 'Visual (Pictures & Diagrams)', icon: '👁️' },
-    { value: 'auditory', label: 'Auditory (Listening & Speaking)', icon: '👂' },
-    { value: 'kinesthetic', label: 'Hands-on (Touch & Movement)', icon: '✋' },
-    { value: 'reading', label: 'Reading & Writing', icon: '📚' }
+  const subjects = [
+    { id: 'math', name: 'Mathematics', icon: '🔢' },
+    { id: 'science', name: 'Science', icon: '🔬' },
+    { id: 'english', name: 'English', icon: '📚' },
+    { id: 'history', name: 'History', icon: '🏛️' },
+    { id: 'geography', name: 'Geography', icon: '🌍' },
+    { id: 'other', name: 'Other', icon: '📝' }
   ];
 
-  const handleSetupComplete = () => {
-    if (tempProfile.name && tempProfile.grade) {
-      onSetupComplete(tempProfile as StudentProfile);
-    }
-  };
-
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="max-w-2xl mx-auto">
       <div className="text-center mb-8">
-        <div className="text-6xl mb-4">🎓</div>
-        <h2 className="text-3xl font-bold text-white mb-2">Let's Get to Know You!</h2>
-        <p className="text-gray-300">This helps us provide age-appropriate solutions and explanations</p>
+        <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+          📚 Homework Helper Setup
+        </h2>
+        <p className="text-gray-300">Tell us about yourself to get personalized help</p>
       </div>
 
-      <div className="bg-white/5 border border-gray-600 rounded-xl p-8 space-y-6">
-        {/* Name Input */}
-        <div>
-          <label className="block text-white font-semibold mb-2">What's your name?</label>
-          <input
-            type="text"
-            value={tempProfile.name || ''}
-            onChange={(e) => setTempProfile(prev => ({ ...prev, name: e.target.value }))}
-            placeholder="Enter your first name"
-            className="w-full p-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:bg-white/15 transition-all"
-          />
-        </div>
-
+      <div className="space-y-8">
         {/* Grade Selection */}
         <div>
-          <label className="block text-white font-semibold mb-2">What grade are you in?</label>
-          <div className="grid grid-cols-4 gap-3">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((grade) => (
+          <h3 className="text-xl font-bold mb-4 text-green-400">What grade are you in?</h3>
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
               <button
                 key={grade}
-                onClick={() => setTempProfile(prev => ({ ...prev, grade }))}
-                className={`p-3 rounded-lg font-semibold transition-all ${
-                  tempProfile.grade === grade
-                    ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                onClick={() => setSelectedGrade(grade)}
+                className={`p-4 rounded-xl font-bold text-lg transition-all ${
+                  selectedGrade === grade
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white scale-105'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
-                Grade {grade}
+                {grade}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Favorite Subjects */}
+        {/* Subject Selection */}
         <div>
-          <label className="block text-white font-semibold mb-2">What subjects do you like? (Select all that apply)</label>
-          <div className="grid grid-cols-2 gap-3">
+          <h3 className="text-xl font-bold mb-4 text-green-400">What subject do you need help with?</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {subjects.map((subject) => (
               <button
-                key={subject}
-                onClick={() => {
-                  const current = tempProfile.favoriteSubjects || [];
-                  const updated = current.includes(subject)
-                    ? current.filter(s => s !== subject)
-                    : [...current, subject];
-                  setTempProfile(prev => ({ ...prev, favoriteSubjects: updated }));
-                }}
-                className={`p-3 rounded-lg font-medium transition-all text-left ${
-                  tempProfile.favoriteSubjects?.includes(subject)
-                    ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                key={subject.id}
+                onClick={() => setSelectedSubject(subject.id)}
+                className={`p-4 rounded-xl transition-all ${
+                  selectedSubject === subject.id
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white scale-105'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
-                {subject}
+                <div className="text-2xl mb-2">{subject.icon}</div>
+                <div className="font-bold">{subject.name}</div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Learning Style */}
-        <div>
-          <label className="block text-white font-semibold mb-2">How do you learn best?</label>
-          <div className="space-y-3">
-            {learningStyles.map((style) => (
-              <button
-                key={style.value}
-                onClick={() => setTempProfile(prev => ({ ...prev, learningStyle: style.value as any }))}
-                className={`w-full p-4 rounded-lg font-medium transition-all text-left flex items-center gap-3 ${
-                  tempProfile.learningStyle === style.value
-                    ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                }`}
-              >
-                <span className="text-2xl">{style.icon}</span>
-                <span>{style.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Complete Setup Button */}
         <button
-          onClick={handleSetupComplete}
-          disabled={!tempProfile.name || !tempProfile.grade}
-          className="w-full bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          onClick={() => onSetupComplete(selectedGrade, selectedSubject)}
+          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105"
         >
-          <GraduationCap size={24} />
-          Start Learning!
+          Continue to Homework Helper →
         </button>
-      </div>
-
-      {/* API Status */}
-      <div className={`text-center p-4 rounded-lg ${
-        isAPIConfigured() 
-          ? 'bg-green-500/20 border border-green-500/50 text-green-400'
-          : 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-400'
-      }`}>
-        {isAPIConfigured() 
-          ? '✅ OpenAI API configured - Dynamic questions enabled'
-          : '⚠️ OpenAI API not configured - Using fallback questions'
-        }
       </div>
     </div>
   );
 };
 
-// Input Method Component
+// Input Method View Component
 const InputMethodView: React.FC<{
-  inputMethod: InputMethod;
-  problemText: string;
-  setProblemText: (text: string) => void;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
-  isListening: boolean;
-  startVoiceInput: () => void;
-  handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  handleCameraCapture: (event: React.ChangeEvent<HTMLInputElement>) => void;
-}> = ({
-  inputMethod,
-  problemText,
-  setProblemText,
-  selectedFile,
-  setSelectedFile,
-  isListening,
-  startVoiceInput,
-  handleFileUpload,
-  handleCameraCapture
-}) => {
+  grade: number;
+  subject: string;
+  onSolutionGenerated: (solution: Solution) => void;
+  onStartChat: () => void;
+}> = ({ grade, subject, onSolutionGenerated, onStartChat }) => {
+  const [inputMethod, setInputMethod] = useState<'type' | 'upload' | 'camera' | null>(null);
+  const [question, setQuestion] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  switch (inputMethod) {
-    case 'type':
-      return (
-        <div className="space-y-4">
-          <div className="relative">
-            <textarea
-              value={problemText}
-              onChange={(e) => setProblemText(e.target.value)}
-              placeholder="Type your problem here... (e.g., 'Solve for x: 2x + 5 = 13')"
-              className="w-full h-40 p-4 bg-white/5 border border-gray-600 rounded-xl text-white placeholder-gray-400 resize-none focus:outline-none focus:border-teal-400 focus:bg-white/10 transition-all"
-            />
-            <div className="absolute bottom-4 right-4 flex gap-2">
-              <button
-                onClick={startVoiceInput}
-                className={`p-2 rounded-lg transition-all ${
-                  isListening 
-                    ? 'bg-red-500 text-white animate-pulse' 
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                {isListening ? <MicOff size={16} /> : <Mic size={16} />}
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between text-sm text-gray-400">
-            <span>{problemText.length}/1000 characters</span>
-          </div>
-        </div>
-      );
-      
-    case 'upload':
-      return (
-        <div className="space-y-4">
-          <div 
-            className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-teal-400 transition-all cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload size={48} className="mx-auto mb-4 text-gray-400" />
-            <h3 className="text-lg font-semibold text-white mb-2">Upload Document</h3>
-            <p className="text-gray-400 mb-4">
-              Drag and drop or click to upload PDF, DOC, or image files
-            </p>
-            <div className="text-sm text-gray-500">
-              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max 10MB)
-            </div>
-          </div>
-          
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          
-          {selectedFile && (
-            <div className="bg-white/5 border border-gray-600 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <FileText className="text-teal-400" size={20} />
-                <div className="flex-1">
-                  <div className="text-white font-medium">{selectedFile.name}</div>
-                  <div className="text-sm text-gray-400">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedFile(null)}
-                  className="text-red-400 hover:text-red-300"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-      
-    case 'camera':
-      return (
-        <div className="space-y-4">
-          <div 
-            className="bg-gradient-to-br from-purple-500/20 to-teal-500/20 border border-teal-500/30 rounded-xl p-8 text-center cursor-pointer hover:from-purple-500/30 hover:to-teal-500/30 transition-all"
-            onClick={() => cameraInputRef.current?.click()}
-          >
-            <Camera size={48} className="mx-auto mb-4 text-teal-400" />
-            <h3 className="text-lg font-semibold text-white mb-2">Take Photo</h3>
-            <p className="text-gray-300 mb-4">
-              Capture your homework problem with your camera
-            </p>
-            <div className="text-sm text-gray-400">
-              Make sure the text is clear and well-lit
-            </div>
-          </div>
-          
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleCameraCapture}
-            className="hidden"
-          />
-          
-          <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4">
-            <h4 className="text-blue-400 font-semibold mb-2">📸 Photo Tips</h4>
-            <ul className="text-sm text-gray-300 space-y-1">
-              <li>• Ensure good lighting</li>
-              <li>• Keep the camera steady</li>
-              <li>• Make sure text is clearly visible</li>
-              <li>• Avoid shadows and glare</li>
-            </ul>
-          </div>
-        </div>
-      );
-      
-    default:
-      return null;
-  }
-};
+  const generateSolution = async (questionText: string) => {
+    if (!questionText.trim()) return;
 
-// Solution View Component
-const SolutionView: React.FC<{
-  currentSolution: Solution | null;
-  showSteps: boolean;
-  setShowSteps: (show: boolean) => void;
-  setViewMode: (mode: ViewMode) => void;
-  setProblemText: (text: string) => void;
-  setCurrentSolution: (solution: Solution | null) => void;
-  copyToClipboard: (text: string) => void;
-  exportSolution: () => void;
-}> = ({
-  currentSolution,
-  showSteps,
-  setShowSteps,
-  setViewMode,
-  setProblemText,
-  setCurrentSolution,
-  copyToClipboard,
-  exportSolution
-}) => {
-  if (!currentSolution) return null;
-  
-  return (
-    <div className="space-y-6">
-      {/* Solution Header */}
-      <div className="bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 rounded-xl p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="text-green-400" size={24} />
-            <div>
-              <h3 className="text-xl font-bold text-white">Solution Found!</h3>
-              <div className="flex items-center gap-4 text-sm text-gray-300 mt-1">
-                <span className="flex items-center gap-1">
-                  <Clock size={14} />
-                  {currentSolution.timeToSolve}s
-                </span>
-                <span className="flex items-center gap-1">
-                  <Star size={14} />
-                  {currentSolution.confidence}% confidence
-                </span>
-                <span className="px-2 py-1 bg-blue-500/20 rounded-full text-xs">
-                  Grade {currentSolution.gradeLevel} • {currentSolution.subject}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <button
-              onClick={() => copyToClipboard(currentSolution.answer)}
-              className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-              title="Copy Answer"
-            >
-              <Copy size={16} className="text-gray-400" />
-            </button>
-            <button
-              onClick={exportSolution}
-              className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-              title="Export Solution"
-            >
-              <Download size={16} className="text-gray-400" />
-            </button>
-            <button
-              onClick={() => {/* Share functionality */}}
-              className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-              title="Share Solution"
-            >
-              <Share2 size={16} className="text-gray-400" />
-            </button>
-          </div>
-        </div>
-        
-        <div className="bg-black/20 rounded-lg p-4 mb-4">
-          <h4 className="text-sm font-semibold text-gray-400 mb-2">PROBLEM:</h4>
-          <p className="text-white">{currentSolution.problem}</p>
-        </div>
-        
-        <div className="bg-gradient-to-r from-teal-500/20 to-green-500/20 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-teal-400 mb-2">ANSWER:</h4>
-          <p className="text-2xl font-bold text-white">{currentSolution.answer}</p>
-        </div>
-      </div>
-
-      {/* Step-by-Step Solution */}
-      <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Calculator className="text-purple-400" size={20} />
-            Step-by-Step Solution
-          </h3>
-          <button
-            onClick={() => setShowSteps(!showSteps)}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-all"
-          >
-            {showSteps ? <EyeOff size={16} /> : <Eye size={16} />}
-            {showSteps ? 'Hide' : 'Show'} Steps
-          </button>
-        </div>
-        
-        {showSteps && (
-          <div className="space-y-4">
-            {currentSolution.steps.map((step, index) => (
-              <div key={index} className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-purple-500/20 border border-purple-500/50 rounded-full flex items-center justify-center text-sm font-bold text-purple-400">
-                  {index + 1}
-                </div>
-                <div className="flex-1 pt-1">
-                  <p className="text-gray-300">{step}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Explanation */}
-      <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-          <Lightbulb className="text-yellow-400" size={20} />
-          Explanation
-        </h3>
-        <p className="text-gray-300 leading-relaxed">{currentSolution.explanation}</p>
-      </div>
-
-      {/* Alternative Methods */}
-      {currentSolution.alternativeMethods && (
-        <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white mb-4">Alternative Methods</h3>
-          <div className="space-y-3">
-            {currentSolution.alternativeMethods.map((method, index) => (
-              <div key={index} className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 bg-teal-500/20 border border-teal-500/50 rounded-full flex items-center justify-center text-xs font-bold text-teal-400">
-                  {index + 1}
-                </div>
-                <p className="text-gray-300 pt-0.5">{method}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Practice Problems */}
-      {currentSolution.practiceProblems && (
-        <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-white mb-4">Practice Similar Problems</h3>
-          <div className="space-y-3">
-            {currentSolution.practiceProblems.map((problem, index) => (
-              <div key={index} className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition-all cursor-pointer">
-                <p className="text-gray-300">{problem}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Action Buttons */}
-      <div className="flex gap-4">
-        <button
-          onClick={() => setViewMode('chat')}
-          className="flex-1 bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-teal-700 transition-all flex items-center justify-center gap-2"
-        >
-          <MessageCircle size={20} />
-          Ask Questions
-        </button>
-        <button
-          onClick={() => {
-            setViewMode('input');
-            setProblemText('');
-            setCurrentSolution(null);
-          }}
-          className="flex-1 bg-white/10 border border-gray-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/20 transition-all"
-        >
-          Solve Another Problem
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Chat View Component
-const ChatView: React.FC<{
-  chatMessages: ChatMessage[];
-  chatInput: string;
-  setChatInput: (input: string) => void;
-  handleChatSend: () => void;
-  studentProfile: StudentProfile | null;
-}> = ({
-  chatMessages,
-  chatInput,
-  setChatInput,
-  handleChatSend,
-  studentProfile
-}) => {
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  return (
-    <div className="space-y-6">
-      {/* Chat Header */}
-      <div className="bg-gradient-to-r from-purple-500/20 to-teal-500/20 border border-purple-500/30 rounded-xl p-6">
-        <h3 className="text-xl font-bold text-white mb-2">Ask Your Doubts</h3>
-        <p className="text-gray-300">Get instant help with concepts, explanations, and related questions</p>
-        {studentProfile && (
-          <div className="mt-3 text-sm text-teal-400">
-            Answers tailored for Grade {studentProfile.grade} level
-          </div>
-        )}
-      </div>
-
-      {/* Chat Messages */}
-      <div className="bg-white/5 border border-gray-600 rounded-xl p-6 h-96 overflow-y-auto">
-        {chatMessages.length === 0 ? (
-          <div className="text-center text-gray-400 mt-20">
-            <MessageCircle size={48} className="mx-auto mb-4 opacity-50" />
-            <p>Start a conversation! Ask me anything about the problem.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {chatMessages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] p-3 rounded-lg ${
-                    message.type === 'user'
-                      ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                      : 'bg-white/10 text-gray-300'
-                  }`}
-                >
-                  <p>{message.content}</p>
-                  <div className="text-xs opacity-70 mt-1">
-                    {message.timestamp.toLocaleTimeString()}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <div ref={chatEndRef} />
-      </div>
-
-      {/* Chat Input */}
-      <div className="flex gap-3">
-        <input
-          type="text"
-          value={chatInput}
-          onChange={(e) => setChatInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleChatSend()}
-          placeholder="Ask about concepts, request explanations, or get help..."
-          className="flex-1 p-3 bg-white/5 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-teal-400 focus:bg-white/10 transition-all"
-        />
-        <button
-          onClick={handleChatSend}
-          disabled={!chatInput.trim()}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-teal-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          <Send size={16} />
-          Send
-        </button>
-      </div>
-
-      {/* Quick Questions */}
-      <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-        <h4 className="text-lg font-semibold text-white mb-4">Quick Questions</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {[
-            "Can you explain this concept differently?",
-            "What are the key formulas I need?",
-            "How do I remember this method?",
-            "Can you give me similar examples?",
-            "What's the real-world application?",
-            "Where might I make mistakes?"
-          ].map((question, index) => (
-            <button
-              key={index}
-              onClick={() => setChatInput(question)}
-              className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition-all text-sm"
-            >
-              {question}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }) => {
-  const [viewMode, setViewMode] = useState<ViewMode>('setup');
-  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
-  const [inputMethod, setInputMethod] = useState<InputMethod>('type');
-  const [problemText, setProblemText] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [currentSolution, setCurrentSolution] = useState<Solution | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [isListening, setIsListening] = useState(false);
-  const [showSteps, setShowSteps] = useState(true);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [recentSolutions, setRecentSolutions] = useState<Solution[]>([]);
-
-  // Check if OpenAI API is configured
-  const isAPIConfigured = () => {
-    const apiKey = import.meta.env.VITE_REACT_APP_OPENAI_API_KEY;
-    return apiKey && apiKey.length > 0;
-  };
-
-  // Generate solution using OpenAI API
-  const generateSolution = useCallback(async (problem: string, subject: string, grade: number): Promise<Solution> => {
-    setIsProcessing(true);
-    
-    if (!isAPIConfigured()) {
-      console.log('⚠️ OpenAI API not configured - Using fallback questions');
-      return getFallbackSolution(problem, subject, grade);
-    }
-
+    setIsLoading(true);
     try {
-      console.log(`🤖 Generating AI solution for Grade ${grade} ${subject}`);
-      
       const apiKey = import.meta.env.VITE_REACT_APP_OPENAI_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error('OpenAI API key not configured');
+      }
+
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -680,598 +138,713 @@ const HomeworkHelper: React.FC<{ onBackToHome: () => void }> = ({ onBackToHome }
           messages: [
             {
               role: 'system',
-              content: `You are an expert educational tutor who provides age-appropriate homework help for grade ${grade} students. Always adjust your language, explanations, and examples to be suitable for a ${grade}th grade student's comprehension level.`
+              content: `You are an expert tutor helping a grade ${grade} student with ${subject}. 
+              
+              CRITICAL INSTRUCTIONS:
+              1. Provide answers appropriate for grade ${grade} level
+              2. Use vocabulary and concepts suitable for a ${grade}th grader
+              3. Give step-by-step explanations that a grade ${grade} student can understand
+              4. If the question is from a different subject than ${subject}, still answer it but mention the subject mismatch
+              5. Be encouraging and supportive in your tone
+              6. Break down complex concepts into simple, digestible parts
+              
+              Format your response as JSON with these fields:
+              - subject: detected subject of the question
+              - answer: the direct answer
+              - explanation: detailed explanation appropriate for grade ${grade}
+              - steps: array of step-by-step solution steps
+              - confidence: confidence level (0-100)
+              - gradeAppropriate: true/false if content matches grade level`
             },
             {
               role: 'user',
-              content: buildPrompt(problem, subject, grade)
+              content: `Please solve this ${subject} problem for a grade ${grade} student: ${questionText}`
             }
           ],
-          temperature: 0.7,
+          temperature: 0.3,
           max_tokens: 1000
         })
       });
 
       if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
+        throw new Error(`API request failed: ${response.status}`);
       }
 
       const data = await response.json();
+      const content = data.choices[0].message.content;
       
-      if (!data.choices || !data.choices[0]?.message?.content) {
-        throw new Error('Invalid API response');
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(content);
+      } catch {
+        // Fallback if JSON parsing fails
+        parsedResponse = {
+          subject: subject,
+          answer: content,
+          explanation: content,
+          steps: [content],
+          confidence: 85,
+          gradeAppropriate: true
+        };
       }
 
-      // Clean and parse the response
-      let content = data.choices[0].message.content.trim();
-      if (content.startsWith('```json')) {
-        content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      }
-
-      const generatedContent = JSON.parse(content);
-      
-      console.log('✅ AI solution generated successfully');
-      
       const solution: Solution = {
-        id: `solution_${Date.now()}`,
-        problem: problem,
-        gradeLevel: grade,
-        ...generatedContent
-      };
-      
-      setIsProcessing(false);
-      return solution;
-      
-    } catch (error) {
-      console.error('❌ Failed to generate AI solution:', error);
-      console.log('📚 Using fallback solution');
-      setIsProcessing(false);
-      return getFallbackSolution(problem, subject, grade);
-    }
-  }, []);
-
-  // Build grade-appropriate prompt
-  const buildPrompt = (problem: string, subject: string, grade: number): string => {
-    const gradeContext = getGradeContext(grade);
-    const subjectContext = getSubjectContext(subject, grade);
-    
-    return `
-Solve this ${subject} problem for a grade ${grade} student:
-
-PROBLEM: "${problem}"
-
-GRADE LEVEL: ${grade} (${gradeContext})
-SUBJECT: ${subject}
-CONTEXT: ${subjectContext}
-
-REQUIREMENTS:
-1. Use language appropriate for grade ${grade} students
-2. Provide step-by-step solution that a ${grade}th grader can understand
-3. Include simple, relatable examples
-4. Keep explanations clear and not too complex
-5. Use vocabulary suitable for this age group
-
-OUTPUT FORMAT (JSON):
-{
-  "answer": "Direct answer in simple terms",
-  "subject": "${subject}",
-  "difficulty": "easy/medium/hard based on grade level",
-  "timeToSolve": 3.5,
-  "confidence": 95,
-  "steps": [
-    "Step 1: Simple explanation...",
-    "Step 2: Next step...",
-    "Step 3: Final step..."
-  ],
-  "explanation": "Age-appropriate explanation of the concept and solution method",
-  "alternativeMethods": [
-    "Alternative way 1 for grade ${grade}",
-    "Alternative way 2 for grade ${grade}"
-  ],
-  "relatedConcepts": [
-    "Related concept 1",
-    "Related concept 2"
-  ],
-  "practiceProblems": [
-    "Similar practice problem 1",
-    "Similar practice problem 2",
-    "Similar practice problem 3"
-  ]
-}`;
-  };
-
-  // Get grade-appropriate context
-  const getGradeContext = (grade: number): string => {
-    if (grade <= 2) return 'Early elementary - basic concepts, simple language';
-    if (grade <= 5) return 'Elementary - building foundational skills';
-    if (grade <= 8) return 'Middle school - more complex concepts but still concrete';
-    return 'High school - abstract thinking and advanced concepts';
-  };
-
-  // Get subject context for grade level
-  const getSubjectContext = (subject: string, grade: number): string => {
-    const contexts: { [key: string]: { [key: number]: string } } = {
-      'Mathematics': {
-        1: 'Basic addition, subtraction, counting, simple shapes',
-        2: 'Two-digit numbers, basic multiplication, time, money',
-        3: 'Multiplication tables, division, fractions, area',
-        4: 'Multi-digit operations, decimals, measurement',
-        5: 'Fractions operations, geometry, data analysis',
-        6: 'Ratios, percentages, integers, basic algebra',
-        7: 'Linear equations, probability, geometry',
-        8: 'Functions, systems of equations, advanced geometry'
-      },
-      'Science': {
-        1: 'Animals, plants, weather, basic observations',
-        2: 'Life cycles, habitats, simple experiments',
-        3: 'Forces, magnets, rocks, ecosystems',
-        4: 'Energy, electricity, human body, solar system',
-        5: 'Chemical reactions, cells, earth processes',
-        6: 'Genetics, plate tectonics, atomic structure',
-        7: 'Chemistry basics, evolution, climate',
-        8: 'Physics concepts, advanced chemistry'
-      },
-      'English': {
-        1: 'Letters, phonics, simple sentences',
-        2: 'Reading comprehension, basic grammar',
-        3: 'Parts of speech, paragraph writing',
-        4: 'Complex sentences, research skills',
-        5: 'Literary analysis, advanced writing',
-        6: 'Advanced grammar, text analysis',
-        7: 'Literary devices, essay writing',
-        8: 'Advanced composition, critical analysis'
-      },
-      'History': {
-        1: 'Community helpers, basic past/present',
-        2: 'Local history, historical figures',
-        3: 'American history basics, geography',
-        4: 'State history, government basics',
-        5: 'U.S. history, world geography',
-        6: 'Ancient civilizations, world history',
-        7: 'World history, government systems',
-        8: 'Advanced world history, civics'
-      }
-    };
-
-    const gradeLevel = Math.min(Math.max(grade, 1), 8);
-    return contexts[subject]?.[gradeLevel] || 'General concepts appropriate for this grade level';
-  };
-
-  // Fallback solution for when API is not available
-  const getFallbackSolution = (problem: string, subject: string, grade: number): Solution => {
-    const gradeAdjustedExplanation = grade <= 3 
-      ? "Let's solve this step by step using simple methods!"
-      : grade <= 6 
-      ? "We'll work through this problem using the methods you've learned in class."
-      : "Let's apply the concepts you know to solve this systematically.";
-
-    return {
-      id: `fallback_${Date.now()}`,
-      problem: problem,
-      answer: grade <= 3 ? "The answer is 12" : "x = 12",
-      subject: subject,
-      difficulty: grade <= 3 ? 'easy' : grade <= 6 ? 'medium' : 'hard',
-      timeToSolve: 3.5,
-      confidence: 90,
-      gradeLevel: grade,
-      steps: [
-        grade <= 3 
-          ? "First, let's look at what we know"
-          : "Step 1: Identify the given information",
-        grade <= 3 
-          ? "Next, we'll use simple counting or addition"
-          : "Step 2: Set up the equation or method",
-        grade <= 3 
-          ? "Finally, we get our answer!"
-          : "Step 3: Solve and check our answer"
-      ],
-      explanation: gradeAdjustedExplanation,
-      alternativeMethods: [
-        grade <= 3 ? "We could also count on our fingers" : "Alternative method using different approach",
-        grade <= 3 ? "Or use pictures to help us" : "Graphical or visual method"
-      ],
-      relatedConcepts: [
-        grade <= 3 ? "Counting" : "Basic algebra",
-        grade <= 3 ? "Addition" : "Problem solving"
-      ],
-      practiceProblems: [
-        grade <= 3 ? "Try: 5 + 7 = ?" : "Similar problem with different numbers",
-        grade <= 3 ? "Try: 10 - 3 = ?" : "Related concept practice",
-        grade <= 3 ? "Try: Count to 20" : "Extension problem"
-      ]
-    };
-  };
-
-  const handleSolveProblem = async () => {
-    if (!problemText.trim() || !selectedSubject || !studentProfile) return;
-    
-    try {
-      const solution = await generateSolution(problemText, selectedSubject, studentProfile.grade);
-      setCurrentSolution(solution);
-      setRecentSolutions(prev => [solution, ...prev.slice(0, 4)]);
-      setViewMode('solution');
-    } catch (error) {
-      console.error('Error generating solution:', error);
-    }
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      // In a real app, you'd process the file here (OCR, etc.)
-      setProblemText(`Problem extracted from ${file.name}`);
-    }
-  };
-
-  const handleCameraCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      // In a real app, you'd process the image here
-      setProblemText("Problem extracted from camera image");
-    }
-  };
-
-  const startVoiceInput = () => {
-    setIsListening(true);
-    // In a real app, implement speech recognition
-    setTimeout(() => {
-      setIsListening(false);
-      setProblemText("Problem captured from voice input");
-    }, 3000);
-  };
-
-  const handleChatSend = () => {
-    if (!chatInput.trim()) return;
-    
-    const userMessage: ChatMessage = {
-      id: `msg_${Date.now()}`,
-      type: 'user',
-      content: chatInput,
-      timestamp: new Date()
-    };
-    
-    setChatMessages(prev => [...prev, userMessage]);
-    setChatInput('');
-    
-    // Simulate AI response with grade-appropriate language
-    setTimeout(() => {
-      const gradeAppropriateResponse = studentProfile && studentProfile.grade <= 3
-        ? "I understand your question! Let me explain this in a simple way that's easy to understand."
-        : studentProfile && studentProfile.grade <= 6
-        ? "Great question! Let me break this down step by step for you."
-        : "I understand your question. Let me provide a detailed explanation to help clarify this concept.";
-        
-      const aiResponse: ChatMessage = {
-        id: `msg_${Date.now() + 1}`,
-        type: 'assistant',
-        content: gradeAppropriateResponse,
+        id: Date.now().toString(),
+        question: questionText,
+        subject: parsedResponse.subject || subject,
+        grade: grade,
+        answer: parsedResponse.answer || 'Answer not available',
+        explanation: parsedResponse.explanation || 'Explanation not available',
+        steps: parsedResponse.steps || ['Solution steps not available'],
+        confidence: parsedResponse.confidence || 85,
+        timeToSolve: '3.5s',
         timestamp: new Date()
       };
-      setChatMessages(prev => [...prev, aiResponse]);
-    }, 1000);
+
+      onSolutionGenerated(solution);
+    } catch (error) {
+      console.error('Error generating solution:', error);
+      
+      // Provide a helpful error message
+      const errorSolution: Solution = {
+        id: Date.now().toString(),
+        question: questionText,
+        subject: subject,
+        grade: grade,
+        answer: 'Unable to generate answer',
+        explanation: 'Sorry, I encountered an error while processing your question. Please check your internet connection and try again.',
+        steps: ['Error occurred during processing'],
+        confidence: 0,
+        timeToSolve: '0s',
+        timestamp: new Date()
+      };
+      
+      onSolutionGenerated(errorSolution);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const copyToClipboard = (text: string) => {
+  const handleFileUpload = async (file: File) => {
+    if (file.type.startsWith('image/')) {
+      // For images, we'd need OCR - for now, show a placeholder
+      setQuestion('Image uploaded - OCR processing would extract text here');
+    } else {
+      // For text files
+      const text = await file.text();
+      setQuestion(text);
+    }
+  };
+
+  const inputMethods = [
+    {
+      id: 'type',
+      name: 'Type Question',
+      icon: Type,
+      description: 'Type your homework question directly'
+    },
+    {
+      id: 'upload',
+      name: 'Upload File',
+      icon: Upload,
+      description: 'Upload a document or image'
+    },
+    {
+      id: 'camera',
+      name: 'Take Photo',
+      icon: Camera,
+      description: 'Take a photo of your homework'
+    }
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+          How would you like to submit your question?
+        </h2>
+        <p className="text-gray-300">Grade {grade} • {subject.charAt(0).toUpperCase() + subject.slice(1)}</p>
+      </div>
+
+      {!inputMethod ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {inputMethods.map((method) => (
+            <button
+              key={method.id}
+              onClick={() => setInputMethod(method.id as any)}
+              className="p-6 bg-gray-800 rounded-xl hover:bg-gray-700 transition-all transform hover:scale-105 border border-gray-700 hover:border-green-500"
+            >
+              <method.icon size={48} className="mx-auto mb-4 text-green-400" />
+              <h3 className="text-xl font-bold mb-2">{method.name}</h3>
+              <p className="text-gray-400">{method.description}</p>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-gray-800 rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-green-400">
+              {inputMethods.find(m => m.id === inputMethod)?.name}
+            </h3>
+            <button
+              onClick={() => setInputMethod(null)}
+              className="text-gray-400 hover:text-white"
+            >
+              Change Method
+            </button>
+          </div>
+
+          {inputMethod === 'type' && (
+            <div>
+              <textarea
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Type your homework question here..."
+                className="w-full h-32 bg-gray-700 border border-gray-600 rounded-lg p-4 text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
+              />
+              <button
+                onClick={() => generateSolution(question)}
+                disabled={!question.trim() || isLoading}
+                className="mt-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-full font-bold hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Solving...' : 'Get Solution'}
+              </button>
+            </div>
+          )}
+
+          {inputMethod === 'upload' && (
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.pdf,.doc,.docx,image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file);
+                }}
+                className="hidden"
+              />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-green-500 transition-colors"
+              >
+                <Upload size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-400">Click to upload a file or drag and drop</p>
+                <p className="text-sm text-gray-500 mt-2">Supports: PDF, DOC, TXT, Images</p>
+              </div>
+              {question && (
+                <div className="mt-4">
+                  <textarea
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    className="w-full h-32 bg-gray-700 border border-gray-600 rounded-lg p-4 text-white"
+                  />
+                  <button
+                    onClick={() => generateSolution(question)}
+                    disabled={!question.trim() || isLoading}
+                    className="mt-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-full font-bold hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-50"
+                  >
+                    {isLoading ? 'Solving...' : 'Get Solution'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {inputMethod === 'camera' && (
+            <div>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file);
+                }}
+                className="hidden"
+              />
+              <div
+                onClick={() => cameraInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-green-500 transition-colors"
+              >
+                <Camera size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-400">Click to take a photo of your homework</p>
+              </div>
+              {question && (
+                <div className="mt-4">
+                  <textarea
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    className="w-full h-32 bg-gray-700 border border-gray-600 rounded-lg p-4 text-white"
+                  />
+                  <button
+                    onClick={() => generateSolution(question)}
+                    disabled={!question.trim() || isLoading}
+                    className="mt-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-full font-bold hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-50"
+                  >
+                    {isLoading ? 'Solving...' : 'Get Solution'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="text-center">
+        <button
+          onClick={onStartChat}
+          className="inline-flex items-center gap-2 bg-gray-700 text-white px-6 py-3 rounded-full font-bold hover:bg-gray-600 transition-all"
+        >
+          <MessageCircle size={20} />
+          Ask Questions Instead
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Solution View Component
+const SolutionView: React.FC<{
+  solution: Solution;
+  onNewQuestion: () => void;
+  onStartChat: () => void;
+}> = ({ solution, onNewQuestion, onStartChat }) => {
+  const copyToClipboard = () => {
+    const text = `Question: ${solution.question}\n\nAnswer: ${solution.answer}\n\nExplanation: ${solution.explanation}`;
     navigator.clipboard.writeText(text);
-    // Show success toast
   };
 
-  const exportSolution = () => {
-    if (!currentSolution) return;
-    
-    const exportData = {
-      problem: currentSolution.problem,
-      answer: currentSolution.answer,
-      steps: currentSolution.steps,
-      explanation: currentSolution.explanation,
-      gradeLevel: currentSolution.gradeLevel
+  return (
+    <div className="max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-xl p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="text-green-400" size={32} />
+            <div>
+              <h2 className="text-2xl font-bold text-green-400">Solution Found!</h2>
+              <div className="flex items-center gap-4 text-sm text-gray-300">
+                <span className="flex items-center gap-1">
+                  <Clock size={16} />
+                  {solution.timeToSolve}
+                </span>
+                <span>⭐ {solution.confidence}% confidence</span>
+                <span className="bg-green-600 px-2 py-1 rounded-full text-xs">
+                  {solution.subject.charAt(0).toUpperCase() + solution.subject.slice(1)}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={copyToClipboard}
+              className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              title="Copy to clipboard"
+            >
+              <Copy size={20} />
+            </button>
+            <button
+              className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              title="Download solution"
+            >
+              <Download size={20} />
+            </button>
+            <button
+              className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              title="Share solution"
+            >
+              <Share2 size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-gray-800/50 rounded-lg p-4">
+          <h3 className="font-bold text-gray-300 mb-2">PROBLEM:</h3>
+          <p className="text-white">{solution.question}</p>
+        </div>
+      </div>
+
+      {/* Answer */}
+      <div className="bg-gray-800 rounded-xl p-6 mb-6">
+        <h3 className="text-xl font-bold text-green-400 mb-4">ANSWER:</h3>
+        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6">
+          <div className="text-3xl font-bold text-green-400 mb-2">{solution.answer}</div>
+        </div>
+      </div>
+
+      {/* Step-by-Step Solution */}
+      <div className="bg-gray-800 rounded-xl p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-white">📝 Step-by-Step Solution</h3>
+          <button className="text-green-400 hover:text-green-300 text-sm">
+            🔗 Hide Steps
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          {solution.steps.map((step, index) => (
+            <div key={index} className="flex gap-4">
+              <div className="flex-shrink-0 w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                {index + 1}
+              </div>
+              <div className="flex-1 bg-gray-700/50 rounded-lg p-4">
+                <p className="text-gray-200">{step}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Explanation */}
+      <div className="bg-gray-800 rounded-xl p-6 mb-6">
+        <h3 className="text-xl font-bold text-white mb-4">💡 Detailed Explanation</h3>
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+          <p className="text-gray-200 leading-relaxed">{solution.explanation}</p>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <button
+          onClick={onNewQuestion}
+          className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-full font-bold hover:from-green-700 hover:to-emerald-700 transition-all"
+        >
+          📚 Solve Another Problem
+        </button>
+        <button
+          onClick={onStartChat}
+          className="bg-gray-700 text-white px-8 py-3 rounded-full font-bold hover:bg-gray-600 transition-all"
+        >
+          💬 Ask Follow-up Questions
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Chat View Component
+const ChatView: React.FC<{
+  grade: number;
+  subject: string;
+  onBackToSolver: () => void;
+}> = ({ grade, subject, onBackToSolver }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: '1',
+      type: 'assistant',
+      content: `Hi! I'm your ${subject} tutor for grade ${grade}. I'm here to help you understand your homework better. What would you like to ask?`,
+      timestamp: new Date()
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const sendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: inputMessage,
+      timestamp: new Date()
     };
-    
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'homework_solution.json';
-    a.click();
-    URL.revokeObjectURL(url);
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setIsLoading(true);
+
+    try {
+      const apiKey = import.meta.env.VITE_REACT_APP_OPENAI_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error('OpenAI API key not configured');
+      }
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a helpful tutor for a grade ${grade} student studying ${subject}. 
+              
+              Guidelines:
+              - Use age-appropriate language for grade ${grade}
+              - Be encouraging and patient
+              - Break down complex concepts into simple parts
+              - Ask follow-up questions to check understanding
+              - Provide examples relevant to their grade level
+              - If they ask about other subjects, still help but mention it's outside ${subject}`
+            },
+            ...messages.map(msg => ({
+              role: msg.type === 'user' ? 'user' : 'assistant',
+              content: msg.content
+            })),
+            {
+              role: 'user',
+              content: inputMessage
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: data.choices[0].message.content,
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSetupComplete = (profile: StudentProfile) => {
-    setStudentProfile(profile);
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  return (
+    <div className="max-w-4xl mx-auto h-[600px] flex flex-col">
+      <div className="bg-gray-800 rounded-t-xl p-4 border-b border-gray-700">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-green-400">💬 Ask Questions</h2>
+            <p className="text-gray-400">Grade {grade} • {subject.charAt(0).toUpperCase() + subject.slice(1)} Tutor</p>
+          </div>
+          <button
+            onClick={onBackToSolver}
+            className="text-gray-400 hover:text-white"
+          >
+            Back to Solver
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 bg-gray-800 p-4 overflow-y-auto">
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[80%] p-4 rounded-lg ${
+                  message.type === 'user'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-700 text-gray-200'
+                }`}
+              >
+                <p className="whitespace-pre-wrap">{message.content}</p>
+                <div className="text-xs opacity-70 mt-2">
+                  {message.timestamp.toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-gray-700 text-gray-200 p-4 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full"></div>
+                  Thinking...
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      <div className="bg-gray-800 rounded-b-xl p-4 border-t border-gray-700">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+            placeholder="Ask a question about your homework..."
+            className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!inputMessage.trim() || isLoading}
+            className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send size={20} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main Component
+const HomeworkHelper: React.FC<HomeworkHelperProps> = ({ onBackToHome }) => {
+  const [viewMode, setViewMode] = useState<'setup' | 'input' | 'solution' | 'chat'>('setup');
+  const [grade, setGrade] = useState<number>(5);
+  const [subject, setSubject] = useState<string>('math');
+  const [currentSolution, setCurrentSolution] = useState<Solution | null>(null);
+  const [recentSolutions, setRecentSolutions] = useState<Solution[]>([]);
+
+  const handleSetupComplete = (selectedGrade: number, selectedSubject: string) => {
+    setGrade(selectedGrade);
+    setSubject(selectedSubject);
+    setViewMode('input');
+  };
+
+  const handleSolutionGenerated = (solution: Solution) => {
+    setCurrentSolution(solution);
+    setRecentSolutions(prev => [solution, ...prev.slice(0, 4)]);
+    setViewMode('solution');
+  };
+
+  const handleNewQuestion = () => {
+    setCurrentSolution(null);
+    setViewMode('input');
+  };
+
+  const handleStartChat = () => {
+    setViewMode('chat');
+  };
+
+  const handleBackToSolver = () => {
     setViewMode('input');
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-green-900/20 to-emerald-900/20 text-white">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-900 to-teal-900 border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-6 py-6">
+      <div className="bg-black/20 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={onBackToHome}
-                className="p-2 hover:bg-white/10 rounded-lg transition-all"
+                className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
               >
-                <ArrowLeft size={24} />
+                <ArrowLeft size={20} />
+                Back to Home
               </button>
-              <div>
-                <h1 className="text-3xl font-black bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                  📚 Homework Helper
-                </h1>
-                <p className="text-gray-300">Get instant, age-appropriate solutions and explanations</p>
+              <div className="w-px h-6 bg-gray-600"></div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                🤝 Homework Helper
+              </h1>
+            </div>
+            {viewMode !== 'setup' && (
+              <div className="text-sm text-gray-400">
+                Grade {grade} • {subject.charAt(0).toUpperCase() + subject.slice(1)}
               </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {studentProfile && (
-                <div className="text-right">
-                  <div className="text-sm text-gray-400">Welcome back, {studentProfile.name}!</div>
-                  <div className="text-lg font-bold text-teal-400">Grade {studentProfile.grade}</div>
-                </div>
-              )}
-              {studentProfile && (
-                <button
-                  onClick={() => setViewMode('setup')}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-all"
-                  title="Edit Profile"
-                >
-                  <Settings size={20} />
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        {viewMode === 'setup' && (
-          <SetupView 
-            onSetupComplete={handleSetupComplete}
-            isAPIConfigured={isAPIConfigured}
-          />
-        )}
-        
-        {viewMode !== 'setup' && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Sidebar */}
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Main Content Area */}
+          <div className="lg:col-span-3">
+            {viewMode === 'setup' && (
+              <SetupView onSetupComplete={handleSetupComplete} />
+            )}
+            
+            {viewMode === 'input' && (
+              <InputMethodView
+                grade={grade}
+                subject={subject}
+                onSolutionGenerated={handleSolutionGenerated}
+                onStartChat={handleStartChat}
+              />
+            )}
+            
+            {viewMode === 'solution' && currentSolution && (
+              <SolutionView
+                solution={currentSolution}
+                onNewQuestion={handleNewQuestion}
+                onStartChat={handleStartChat}
+              />
+            )}
+            
+            {viewMode === 'chat' && (
+              <ChatView
+                grade={grade}
+                subject={subject}
+                onBackToSolver={handleBackToSolver}
+              />
+            )}
+          </div>
+
+          {/* Sidebar */}
+          {viewMode !== 'setup' && (
             <div className="lg:col-span-1">
-              <div className="space-y-6">
-                {/* Student Profile */}
-                {studentProfile && (
-                  <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-teal-600 rounded-full flex items-center justify-center">
-                        <User size={20} className="text-white" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-white">{studentProfile.name}</div>
-                        <div className="text-sm text-gray-400">Grade {studentProfile.grade}</div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      Learning Style: {studentProfile.learningStyle}
-                    </div>
-                  </div>
-                )}
+              <div className="bg-gray-800/50 backdrop-blur-md rounded-xl p-6 border border-gray-700/50 sticky top-24">
+                <h3 className="text-lg font-bold mb-4 text-green-400">💬 Ask Questions</h3>
+                <p className="text-gray-300 text-sm mb-4">
+                  Need help understanding something? Start a conversation with your AI tutor.
+                </p>
+                <button
+                  onClick={handleStartChat}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-lg font-bold hover:from-green-700 hover:to-emerald-700 transition-all"
+                >
+                  Start Chat
+                </button>
 
-                {/* Subject Selection */}
-                {viewMode === 'input' && (
-                  <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
-                    <h3 className="font-semibold text-white mb-4">Select Subject</h3>
-                    <div className="space-y-2">
-                      {['Mathematics', 'Science', 'English', 'History'].map((subject) => (
-                        <button
-                          key={subject}
-                          onClick={() => setSelectedSubject(subject)}
-                          className={`w-full text-left p-3 rounded-lg transition-all ${
-                            selectedSubject === subject
-                              ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                              : 'text-gray-400 hover:text-white hover:bg-white/5'
-                          }`}
-                        >
-                          {subject}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* View Mode Selector */}
-                <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
-                  <h3 className="font-semibold text-white mb-4">Navigation</h3>
-                  <div className="space-y-2">
-                    {[
-                      { mode: 'input' as ViewMode, icon: Type, label: 'Input Problem' },
-                      { mode: 'solution' as ViewMode, icon: BookOpen, label: 'View Solution' },
-                      { mode: 'chat' as ViewMode, icon: MessageCircle, label: 'Ask Questions' }
-                    ].map(({ mode, icon: Icon, label }) => (
-                      <button
-                        key={mode}
-                        onClick={() => setViewMode(mode)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                          viewMode === mode
-                            ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                            : 'text-gray-400 hover:text-white hover:bg-white/5'
-                        }`}
-                      >
-                        <Icon size={18} />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Input Method Selector (only show in input mode) */}
-                {viewMode === 'input' && (
-                  <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
-                    <h3 className="font-semibold text-white mb-4">Input Method</h3>
-                    <div className="space-y-2">
-                      {[
-                        { method: 'type' as InputMethod, icon: Type, label: 'Type Problem' },
-                        { method: 'upload' as InputMethod, icon: Upload, label: 'Upload File' },
-                        { method: 'camera' as InputMethod, icon: Camera, label: 'Take Photo' }
-                      ].map(({ method, icon: Icon, label }) => (
-                        <button
-                          key={method}
-                          onClick={() => setInputMethod(method)}
-                          className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                            inputMethod === method
-                              ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white'
-                              : 'text-gray-400 hover:text-white hover:bg-white/5'
-                          }`}
-                        >
-                          <Icon size={18} />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Recent Solutions */}
                 {recentSolutions.length > 0 && (
-                  <div className="bg-white/5 border border-gray-600 rounded-xl p-4">
-                    <h3 className="font-semibold text-white mb-4">Recent Solutions</h3>
-                    <div className="space-y-2">
+                  <div className="mt-8">
+                    <h3 className="text-lg font-bold mb-4 text-green-400">Recent Solutions</h3>
+                    <div className="space-y-3">
                       {recentSolutions.map((solution) => (
-                        <button
+                        <div
                           key={solution.id}
+                          className="bg-gray-700/50 rounded-lg p-3 cursor-pointer hover:bg-gray-700 transition-colors"
                           onClick={() => {
                             setCurrentSolution(solution);
                             setViewMode('solution');
                           }}
-                          className="w-full text-left p-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all"
                         >
-                          <div className="text-sm text-white font-medium truncate">
-                            {solution.problem}
+                          <div className="text-sm font-medium text-white mb-1 truncate">
+                            {solution.question}
                           </div>
-                          <div className="text-xs text-gray-400 mt-1">
-                            Grade {solution.gradeLevel} • {solution.subject} • {solution.difficulty}
+                          <div className="text-xs text-gray-400 flex items-center gap-2">
+                            <span>{solution.subject}</span>
+                            <span>•</span>
+                            <span>{solution.confidence}% confidence</span>
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Main Content */}
-            <div className="lg:col-span-3">
-              {viewMode === 'input' && (
-                <div className="space-y-6">
-                  {!selectedSubject ? (
-                    <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-6 text-center">
-                      <AlertCircle className="mx-auto mb-4 text-yellow-400" size={48} />
-                      <h3 className="text-xl font-bold text-white mb-2">Select a Subject First</h3>
-                      <p className="text-gray-300">Choose a subject from the sidebar to get started with your homework problem.</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="bg-white/5 border border-gray-600 rounded-xl p-6">
-                        <h2 className="text-2xl font-bold text-white mb-6">
-                          {inputMethod === 'type' && `✍️ Type Your ${selectedSubject} Problem`}
-                          {inputMethod === 'upload' && `📄 Upload ${selectedSubject} Document`}
-                          {inputMethod === 'camera' && `📸 Capture ${selectedSubject} Problem`}
-                        </h2>
-                        
-                        <InputMethodView
-                          inputMethod={inputMethod}
-                          problemText={problemText}
-                          setProblemText={setProblemText}
-                          selectedFile={selectedFile}
-                          setSelectedFile={setSelectedFile}
-                          isListening={isListening}
-                          startVoiceInput={startVoiceInput}
-                          handleFileUpload={handleFileUpload}
-                          handleCameraCapture={handleCameraCapture}
-                        />
-                        
-                        <div className="mt-6 flex gap-4">
-                          <button
-                            onClick={handleSolveProblem}
-                            disabled={!problemText.trim() || !selectedSubject || isProcessing}
-                            className="flex-1 bg-gradient-to-r from-purple-600 to-teal-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                          >
-                            {isProcessing ? (
-                              <>
-                                <Loader2 className="animate-spin" size={20} />
-                                Solving Problem...
-                              </>
-                            ) : (
-                              <>
-                                <Calculator size={20} />
-                                Solve Problem
-                              </>
-                            )}
-                          </button>
-                          
-                          {problemText && (
-                            <button
-                              onClick={() => {
-                                setProblemText('');
-                                setSelectedFile(null);
-                              }}
-                              className="px-6 py-4 bg-white/10 border border-gray-600 text-white rounded-xl font-semibold hover:bg-white/20 transition-all"
-                            >
-                              Clear
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Features Info */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl p-4">
-                          <div className="text-2xl mb-2">⚡</div>
-                          <h3 className="font-semibold text-white mb-1">Age-Appropriate</h3>
-                          <p className="text-sm text-gray-300">Solutions tailored for Grade {studentProfile?.grade} understanding</p>
-                        </div>
-                        
-                        <div className="bg-gradient-to-br from-green-500/20 to-teal-500/20 border border-green-500/30 rounded-xl p-4">
-                          <div className="text-2xl mb-2">🎯</div>
-                          <h3 className="font-semibold text-white mb-1">High Accuracy</h3>
-                          <p className="text-sm text-gray-300">95%+ accuracy with step-by-step explanations</p>
-                        </div>
-                        
-                        <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl p-4">
-                          <div className="text-2xl mb-2">💬</div>
-                          <h3 className="font-semibold text-white mb-1">Ask Questions</h3>
-                          <p className="text-sm text-gray-300">Chat with AI for doubts and concept clarification</p>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {viewMode === 'solution' && (
-                <SolutionView
-                  currentSolution={currentSolution}
-                  showSteps={showSteps}
-                  setShowSteps={setShowSteps}
-                  setViewMode={setViewMode}
-                  setProblemText={setProblemText}
-                  setCurrentSolution={setCurrentSolution}
-                  copyToClipboard={copyToClipboard}
-                  exportSolution={exportSolution}
-                />
-              )}
-
-              {viewMode === 'chat' && (
-                <ChatView
-                  chatMessages={chatMessages}
-                  chatInput={chatInput}
-                  setChatInput={setChatInput}
-                  handleChatSend={handleChatSend}
-                  studentProfile={studentProfile}
-                />
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
