@@ -36,9 +36,26 @@ class QuestionGenerator {
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
+    
+    // Log API configuration status
+    if (!apiKey || apiKey === 'your-actual-api-key-here' || apiKey.trim() === '') {
+      console.log('⚠️ OpenAI API not configured - Using fallback questions');
+      console.log('📋 To enable AI questions:');
+      console.log('1. Get API key: https://platform.openai.com/api-keys');
+      console.log('2. Update .env: VITE_REACT_APP_OPENAI_API_KEY=your-real-key');
+      console.log('3. Restart server: Ctrl+C then npm run dev');
+    } else {
+      console.log('✅ OpenAI API configured - Dynamic questions enabled');
+    }
   }
 
   async generateQuestion(request: QuestionRequest): Promise<GeneratedQuestion> {
+    // Check if API key is properly configured before making request
+    if (!this.apiKey || this.apiKey === 'your-actual-api-key-here' || this.apiKey.trim() === '') {
+      console.warn('⚠️ OpenAI API key not configured - Using fallback questions');
+      return this.getFallbackQuestion(request);
+    }
+    
     const prompt = this.buildPrompt(request);
     
     return this.makeAPIRequestWithRetry(prompt, request);
@@ -75,6 +92,8 @@ class QuestionGenerator {
 
   private async makeAPIRequest(prompt: string, request: QuestionRequest): Promise<GeneratedQuestion> {
     try {
+      console.log('🤖 Generating AI question for Grade', request.grade, request.subject, `(${request.difficulty})`);
+      
       const response = await fetch(this.baseURL, {
         method: 'POST',
         headers: {
@@ -99,6 +118,15 @@ class QuestionGenerator {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          console.error('❌ OpenAI API authentication failed. Please check your API key configuration.');
+          console.error('📋 Instructions:');
+          console.error('1. Get your API key from https://platform.openai.com/api-keys');
+          console.error('2. Update your .env file with: VITE_REACT_APP_OPENAI_API_KEY=your-real-key');
+          console.error('3. Restart the development server');
+          throw new Error('OpenAI API authentication failed - Invalid or missing API key');
+        }
+        
         throw new Error(`API request failed with status ${response.status}`);
       }
 
@@ -122,6 +150,8 @@ class QuestionGenerator {
       
       const generatedContent = JSON.parse(content);
       
+      console.log('✅ AI question generated successfully');
+      
       return {
         id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         ...generatedContent,
@@ -130,7 +160,8 @@ class QuestionGenerator {
         difficulty: request.difficulty
       };
     } catch (error) {
-      console.error('Question generation failed:', error);
+      console.error('❌ Failed to generate AI question:', error);
+      console.log('📚 Using fallback questions');
       return this.getFallbackQuestion(request);
     }
   }
