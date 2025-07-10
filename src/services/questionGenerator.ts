@@ -481,7 +481,7 @@ Respond in JSON format:
 
   private async makeAPIRequest(prompt: string): Promise<string> {
     try {
-      console.log('🤖 Generating AI question for Grade', request.grade, request.subject, `(${request.difficulty})`);
+      console.log('🤖 Generating AI question...');
       
       const response = await fetch(this.baseURL, {
         method: 'POST',
