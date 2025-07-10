@@ -493,30 +493,30 @@ Respond in JSON format:
           console.log(`🔄 Retrying API request (attempt ${attempt + 1}/${maxRetries})...`);
         }
         
-        const response = await fetch(this.baseURL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`
-          },
-          body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
-            messages: [
-              {
-                role: 'system',
+      const response = await fetch(this.baseURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
                 content: 'You are an expert educational content creator who generates engaging, grade-appropriate problems with intentional mistakes for students to catch. Always respond in valid JSON format.'
-              },
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
             temperature: 0.7,
             max_tokens: 1000
-          })
-        });
+        })
+      });
 
-        if (!response.ok) {
+      if (!response.ok) {
           if (response.status === 401) {
             console.log('❌ OpenAI API authentication failed. Please check your API key configuration.');
             console.log('📋 Instructions:');
@@ -540,26 +540,26 @@ Respond in JSON format:
             }
           }
           
-          throw new Error(`API request failed with status ${response.status}`);
-        }
+        throw new Error(`API request failed with status ${response.status}`);
+      }
 
-        const data = await response.json();
-        
-        if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
-          throw new Error('Invalid API response: missing choices array');
-        }
-        
-        if (!data.choices[0].message || !data.choices[0].message.content) {
-          throw new Error('Invalid API response: missing message content');
-        }
-        
-        // Clean markdown code block delimiters from the response
-        let content = data.choices[0].message.content.trim();
-        if (content.startsWith('```json')) {
-          content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        } else if (content.startsWith('```')) {
-          content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
-        }
+      const data = await response.json();
+      
+      if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+        throw new Error('Invalid API response: missing choices array');
+      }
+      
+      if (!data.choices[0].message || !data.choices[0].message.content) {
+        throw new Error('Invalid API response: missing message content');
+      }
+      
+      // Clean markdown code block delimiters from the response
+      let content = data.choices[0].message.content.trim();
+      if (content.startsWith('```json')) {
+        content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (content.startsWith('```')) {
+        content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
         return content;
       } catch (error) {
         if (error instanceof Error && error.message.includes('rate limit')) {

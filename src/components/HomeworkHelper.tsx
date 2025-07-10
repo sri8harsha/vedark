@@ -158,6 +158,10 @@ const InputMethodView: React.FC<{
   const [voiceSupported, setVoiceSupported] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  // Add state for image preview and OCR fallback
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Check for voice support
   React.useEffect(() => {
@@ -359,26 +363,62 @@ Note: Keep your API key private and never share it publicly!`,
     }
   };
 
+  // Remove Tesseract.js and Google Vision OCR logic
+  // Only keep image preview and direct upload to backend for GPT-4V
+
   const handleFileUpload = async (file: File) => {
-    setOcrError(null);
+    setUploadedImage(null);
+    setImageFile(null);
+    setError(null);
     if (file.type.startsWith('image/')) {
-      setOcrLoading(true);
-      setQuestion('');
-      try {
-        const { data: { text } } = await Tesseract.recognize(file, 'eng', {
-          logger: m => console.log(m)
-        });
-        setQuestion(text.trim());
-      } catch (err) {
-        setOcrError('Could not extract text from image. Please try a clearer photo.');
-        setQuestion('');
-      } finally {
-        setOcrLoading(false);
-      }
+      // Preview image
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUploadedImage(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+      setImageFile(file);
     } else {
-      // For text files
+      // For text files, fallback to text input
       const text = await file.text();
       setQuestion(text);
+    }
+  };
+
+  const generateSolutionFromImage = async () => {
+    if (!imageFile) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      const response = await fetch('http://localhost:5001/api/gpt4v', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) throw new Error('Failed to get solution from GPT-4V');
+      const data = await response.json();
+      setQuestion(data.question || '');
+      onSolutionGenerated({
+        id: Date.now().toString(),
+        question: data.question || '',
+        subject: subject,
+        grade: grade,
+        answer: data.answer || 'Answer not available',
+        explanation: data.explanation || 'Explanation not available',
+        steps: data.steps || ['Solution steps not available'],
+        confidence: data.confidence || 85,
+        timeToSolve: data.timeToSolve || '3.5s',
+        timestamp: new Date(),
+        approaches: data.approaches || [],
+        flashcards: data.flashcards || [],
+        practiceQuestions: data.practiceQuestions || [],
+        isBookmarked: false
+      });
+    } catch (error) {
+      setError('Failed to get solution from GPT-4V. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -493,13 +533,13 @@ Note: Keep your API key private and never share it publicly!`,
                 <p className="text-gray-400">Click to upload a file or drag and drop</p>
                 <p className="text-sm text-gray-500 mt-2">Supports: PDF, DOC, TXT, Images</p>
               </div>
-              {ocrLoading && (
+              {isLoading && (
                 <div className="mt-4 text-green-400 font-bold">Extracting text from image...</div>
               )}
-              {ocrError && (
-                <div className="mt-4 text-red-400 font-bold">{ocrError}</div>
+              {error && (
+                <div className="mt-4 text-red-400 font-bold">{error}</div>
               )}
-              {question && !ocrLoading && (
+              {question && !isLoading && (
                 <div className="mt-4">
                   <textarea
                     value={question}
@@ -513,6 +553,19 @@ Note: Keep your API key private and never share it publicly!`,
                   >
                     {isLoading ? 'Solving...' : 'Get Solution'}
                   </button>
+                </div>
+              )}
+              {uploadedImage && (
+                <div className="mt-4 flex flex-col items-center">
+                  <img src={uploadedImage} alt="Uploaded preview" className="max-h-48 rounded-lg border border-gray-600 mb-2" />
+                  <button
+                    onClick={generateSolutionFromImage}
+                    disabled={isLoading}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full font-bold mb-2"
+                  >
+                    {isLoading ? 'Solving...' : 'Get Solution from Image (GPT-4V)'}
+                  </button>
+                  {error && <div className="text-red-400 font-bold mt-2">{error}</div>}
                 </div>
               )}
             </div>
@@ -538,13 +591,13 @@ Note: Keep your API key private and never share it publicly!`,
                 <Camera size={48} className="mx-auto mb-4 text-gray-400" />
                 <p className="text-gray-400">Click to take a photo of your homework</p>
               </div>
-              {ocrLoading && (
+              {isLoading && (
                 <div className="mt-4 text-green-400 font-bold">Extracting text from image...</div>
               )}
-              {ocrError && (
-                <div className="mt-4 text-red-400 font-bold">{ocrError}</div>
+              {error && (
+                <div className="mt-4 text-red-400 font-bold">{error}</div>
               )}
-              {question && !ocrLoading && (
+              {question && !isLoading && (
                 <div className="mt-4">
                   <textarea
                     value={question}
@@ -558,6 +611,19 @@ Note: Keep your API key private and never share it publicly!`,
                   >
                     {isLoading ? 'Solving...' : 'Get Solution'}
                   </button>
+                </div>
+              )}
+              {uploadedImage && (
+                <div className="mt-4 flex flex-col items-center">
+                  <img src={uploadedImage} alt="Uploaded preview" className="max-h-48 rounded-lg border border-gray-600 mb-2" />
+                  <button
+                    onClick={generateSolutionFromImage}
+                    disabled={isLoading}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full font-bold mb-2"
+                  >
+                    {isLoading ? 'Solving...' : 'Get Solution from Image (GPT-4V)'}
+                  </button>
+                  {error && <div className="text-red-400 font-bold mt-2">{error}</div>}
                 </div>
               )}
             </div>

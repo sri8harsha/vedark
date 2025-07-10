@@ -25,3 +25,6 @@ dist-ssr
 .env
 !push-sync.sh
 !pull-sync.sh
+
+vision-service-account.json
+uploads/
