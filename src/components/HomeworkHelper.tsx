@@ -121,10 +121,20 @@ const InputMethodView: React.FC<{
 
     setIsLoading(true);
     try {
-      const apiKey = import.meta.env.VITE_REACT_APP_OPENAI_API_KEY;
+      // Check multiple possible environment variable names
+      const apiKey = import.meta.env.VITE_REACT_APP_OPENAI_API_KEY || 
+                     import.meta.env.VITE_OPENAI_API_KEY || 
+                     import.meta.env.OPENAI_API_KEY;
       
-      if (!apiKey) {
-        throw new Error('OpenAI API key not configured');
+      console.log('🔑 Checking API key availability:', apiKey ? '✅ Found' : '❌ Not found');
+      console.log('🔍 Environment variables:', {
+        VITE_REACT_APP_OPENAI_API_KEY: import.meta.env.VITE_REACT_APP_OPENAI_API_KEY ? 'Set' : 'Not set',
+        VITE_OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY ? 'Set' : 'Not set',
+        OPENAI_API_KEY: import.meta.env.OPENAI_API_KEY ? 'Set' : 'Not set'
+      });
+      
+      if (!apiKey || apiKey === 'your-actual-api-key-here') {
+        throw new Error('OpenAI API key not configured. Please add your API key to the .env file and restart the server.');
       }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
