@@ -480,67 +480,105 @@ Respond in JSON format:
   }
 
   private async makeAPIRequest(prompt: string): Promise<string> {
-    try {
-      console.log('🤖 Generating AI question...');
-      
-      const response = await fetch(this.baseURL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert educational content creator who generates engaging, grade-appropriate problems with intentional mistakes for students to catch. Always respond in valid JSON format.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 1000
-        })
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.log('❌ OpenAI API authentication failed. Please check your API key configuration.');
-          console.log('📋 Instructions:');
-          console.log('1. Get your API key from https://platform.openai.com/api-keys');
-          console.log('2. Update your .env file with: VITE_REACT_APP_OPENAI_API_KEY=your-real-key');
-          console.log('3. Restart the development server');
-          throw new Error('OpenAI API authentication failed - Invalid or missing API key');
+    const maxRetries = 5;
+    let attempt = 0;
+    
+    while (attempt < maxRetries) {
+      try {
+        if (attempt === 0) {
+          console.log('🤖 Generating AI question...');
+        } else {
+          console.log(`🔄 Retrying API request (attempt ${attempt + 1}/${maxRetries})...`);
         }
         
-        throw new Error(`API request failed with status ${response.status}`);
-      }
+        const response = await fetch(this.baseURL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an expert educational content creator who generates engaging, grade-appropriate problems with intentional mistakes for students to catch. Always respond in valid JSON format.'
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.7,
+            max_tokens: 1000
+          })
+        });
 
-      const data = await response.json();
-      
-      if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
-        throw new Error('Invalid API response: missing choices array');
+        if (!response.ok) {
+          if (response.status === 401) {
+            console.log('❌ OpenAI API authentication failed. Please check your API key configuration.');
+            console.log('📋 Instructions:');
+            console.log('1. Get your API key from https://platform.openai.com/api-keys');
+            console.log('2. Update your .env file with: VITE_REACT_APP_OPENAI_API_KEY=your-real-key');
+            console.log('3. Restart the development server');
+            throw new Error('OpenAI API authentication failed - Invalid or missing API key');
+          }
+          
+          if (response.status === 429) {
+            // Rate limit hit - implement exponential backoff
+            if (attempt < maxRetries - 1) {
+              const waitTime = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s, 8s, 16s
+              console.log(`⏳ Rate limit hit. Waiting ${waitTime/1000}s before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              attempt++;
+              continue;
+            } else {
+              console.log('❌ Rate limit exceeded. Maximum retries reached.');
+              throw new Error('OpenAI API rate limit exceeded - Please try again later');
+            }
+          }
+          
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+          throw new Error('Invalid API response: missing choices array');
+        }
+        
+        if (!data.choices[0].message || !data.choices[0].message.content) {
+          throw new Error('Invalid API response: missing message content');
+        }
+        
+        // Clean markdown code block delimiters from the response
+        let content = data.choices[0].message.content.trim();
+        if (content.startsWith('```json')) {
+          content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (content.startsWith('```')) {
+          content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+        return content;
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('rate limit')) {
+          // Re-throw rate limit errors immediately
+          throw error;
+        }
+        
+        if (attempt < maxRetries - 1) {
+          console.log(`⚠️ API request failed (attempt ${attempt + 1}), retrying...`);
+          attempt++;
+          const waitTime = 1000; // 1 second wait for non-rate-limit errors
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        } else {
+          console.error('API request failed after all retries:', error);
+          throw error;
+        }
       }
-      
-      if (!data.choices[0].message || !data.choices[0].message.content) {
-        throw new Error('Invalid API response: missing message content');
-      }
-      
-      // Clean markdown code block delimiters from the response
-      let content = data.choices[0].message.content.trim();
-      if (content.startsWith('```json')) {
-        content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      } else if (content.startsWith('```')) {
-        content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
-      }
-      return content;
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
     }
+    
+    throw new Error('Maximum retry attempts reached');
   }
 
   private buildPrompt(request: QuestionRequest): string {
