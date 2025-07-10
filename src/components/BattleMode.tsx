@@ -10,6 +10,7 @@ import AchievementPanel from './AchievementPanel';
 import PowerUpShop from './PowerUpShop';
 import TopicSelect from './TopicSelect';
 import QuestionFormatSelect from './QuestionFormatSelect';
+import QuestionDisplay from './QuestionDisplay';
 
 interface BattleModeProps {
   onBackToHome?: () => void;
@@ -339,17 +340,30 @@ const BattleMode: React.FC<BattleModeProps> = ({ onBackToHome }) => {
         setOpponentReaction(reactions[Math.floor(Math.random() * reactions.length)]);
       }
 
-          // Show solution after 3 seconds (or immediately if user is experienced)
-    const solutionDelay = playerProfile.battlesPlayed > 5 ? 1000 : 3000;
-    setTimeout(() => {
-      setGameState(prev => ({
-        ...prev,
-        showingSolution: true,
-        gamePhase: 'solution'
-      }));
-      setOpponentReaction('');
-      startTimer();
-    }, solutionDelay);
+      // For catch-mistake format, show solution after delay
+      // For other formats, go directly to solution phase
+      if (problem.format === 'catch-mistake') {
+        const solutionDelay = playerProfile.battlesPlayed > 5 ? 1000 : 3000;
+        setTimeout(() => {
+          setGameState(prev => ({
+            ...prev,
+            showingSolution: true,
+            gamePhase: 'solution'
+          }));
+          setOpponentReaction('');
+          startTimer();
+        }, solutionDelay);
+      } else {
+        // For non-catch-mistake formats, go directly to solution phase
+        setTimeout(() => {
+          setGameState(prev => ({
+            ...prev,
+            gamePhase: 'solution'
+          }));
+          setOpponentReaction('');
+          startTimer();
+        }, 1000);
+      }
     } catch (err) {
       setError('Failed to generate problem. Please try again.');
       console.error('Problem generation error:', err);
@@ -406,7 +420,12 @@ const BattleMode: React.FC<BattleModeProps> = ({ onBackToHome }) => {
     clearInterval(timerRef.current!);
     
     const problem = gameState.currentProblem!;
-    const playerCorrect = (problem.hasError && !isCorrect) || (!problem.hasError && isCorrect);
+    
+    // For catch-mistake format, check if player correctly identified the mistake
+    // For other formats, isCorrect is already determined by the QuestionDisplay component
+    const playerCorrect = problem.format === 'catch-mistake' 
+      ? (problem.hasError && !isCorrect) || (!problem.hasError && isCorrect)
+      : isCorrect;
     
     if (playerCorrect) {
       const points = calculatePoints();
@@ -1208,11 +1227,8 @@ const BattleMode: React.FC<BattleModeProps> = ({ onBackToHome }) => {
             
             {gameState.currentProblem && !isLoading && !error && (
               <div className="text-center">
-                <div className="text-2xl font-bold mb-6 text-white">
-                  {gameState.currentProblem.question}
-                </div>
-                
-                {gameState.showingSolution && (
+                {/* For catch-mistake format, show the solution steps */}
+                {gameState.currentProblem.format === 'catch-mistake' && gameState.showingSolution && (
                   <div className={`border rounded-xl p-6 mb-6 ${
                     gameState.selectedDifficulty === 'easy' ? 'bg-green-500/20 border-green-500/50' :
                     gameState.selectedDifficulty === 'normal' ? 'bg-blue-500/20 border-blue-500/50' :
@@ -1244,7 +1260,7 @@ const BattleMode: React.FC<BattleModeProps> = ({ onBackToHome }) => {
                       </button>
                     </div>
                     <div className="space-y-2">
-                      {gameState.currentProblem.steps.map((step, index) => (
+                      {(gameState.currentProblem.steps || []).map((step, index) => (
                         <div
                           key={index}
                           className={`p-3 rounded-lg transition-all ${
@@ -1259,12 +1275,26 @@ const BattleMode: React.FC<BattleModeProps> = ({ onBackToHome }) => {
                     </div>
                   </div>
                 )}
+                
+                {/* For other formats, show the question content */}
+                {gameState.currentProblem.format !== 'catch-mistake' && (
+                  <QuestionDisplay
+                    problem={gameState.currentProblem}
+                    onAnswer={(answer) => {
+                      // For non-catch-mistake formats, we need to determine if the answer is correct
+                      const isCorrect = answer === gameState.currentProblem.correctAnswer;
+                      handleAnswer(isCorrect);
+                    }}
+                    isAnswered={gameState.gamePhase === 'feedback'}
+                    selectedAnswer={gameState.gamePhase === 'feedback' ? gameState.currentProblem.correctAnswer : undefined}
+                  />
+                )}
               </div>
             )}
           </div>
 
-          {/* Enhanced Action Buttons with Character Theming */}
-          {gameState.gamePhase === 'solution' && (
+          {/* Enhanced Action Buttons with Character Theming - Only for catch-mistake format */}
+          {gameState.gamePhase === 'solution' && gameState.currentProblem?.format === 'catch-mistake' && (
             <div className="flex justify-center gap-6" role="group" aria-label="Battle actions">
               <button
                 data-action="correct"
