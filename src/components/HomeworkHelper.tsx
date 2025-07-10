@@ -134,7 +134,38 @@ const InputMethodView: React.FC<{
       });
       
       if (!apiKey || apiKey === 'your-actual-api-key-here') {
-        throw new Error('OpenAI API key not configured. Please add your API key to the .env file and restart the server.');
+        // Show user-friendly error with setup instructions
+        const errorSolution: Solution = {
+          id: Date.now().toString(),
+          question: questionText,
+          subject: subject,
+          grade: grade,
+          answer: '🔑 API Key Required',
+          explanation: `To use the Homework Helper, you need to set up your OpenAI API key:
+
+1. Get an API key from https://platform.openai.com/api-keys
+2. Open the .env file in your project root
+3. Replace "your-actual-api-key-here" with your real API key
+4. Restart the development server (Ctrl+C then npm run dev)
+
+Your .env file should look like:
+VITE_REACT_APP_OPENAI_API_KEY=sk-your-actual-key-here
+
+Note: Keep your API key private and never share it publicly!`,
+          steps: [
+            'Visit https://platform.openai.com/api-keys to get your API key',
+            'Copy your API key (starts with "sk-")',
+            'Open the .env file in your project',
+            'Replace the placeholder with your real API key',
+            'Save the file and restart the server'
+          ],
+          confidence: 0,
+          timeToSolve: '0s',
+          timestamp: new Date()
+        };
+        
+        onSolutionGenerated(errorSolution);
+        return;
       }
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
