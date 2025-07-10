@@ -508,11 +508,11 @@ Respond in JSON format:
 
       if (!response.ok) {
         if (response.status === 401) {
-          console.error('❌ OpenAI API authentication failed. Please check your API key configuration.');
-          console.error('📋 Instructions:');
-          console.error('1. Get your API key from https://platform.openai.com/api-keys');
-          console.error('2. Update your .env file with: VITE_REACT_APP_OPENAI_API_KEY=your-real-key');
-          console.error('3. Restart the development server');
+          console.log('❌ OpenAI API authentication failed. Please check your API key configuration.');
+          console.log('📋 Instructions:');
+          console.log('1. Get your API key from https://platform.openai.com/api-keys');
+          console.log('2. Update your .env file with: VITE_REACT_APP_OPENAI_API_KEY=your-real-key');
+          console.log('3. Restart the development server');
           throw new Error('OpenAI API authentication failed - Invalid or missing API key');
         }
         
