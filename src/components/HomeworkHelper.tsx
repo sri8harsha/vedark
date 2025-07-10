@@ -1,5 +1,17 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Upload, Camera, Type, MessageCircle, Send, Copy, Download, Share2, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Upload, Camera, Type, MessageCircle, Send, Copy, Download, Share2, Clock, CheckCircle, AlertCircle, Bookmark, BookOpen, Mic, Volume2 } from 'lucide-react';
+import Tesseract from 'tesseract.js';
+import ReactMarkdown from 'react-markdown';
+import 'katex/dist/katex.min.css';
+import { InlineMath, BlockMath } from 'react-katex';
+
+// TypeScript declarations for Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 interface HomeworkHelperProps {
   onBackToHome: () => void;
@@ -16,6 +28,33 @@ interface Solution {
   confidence: number;
   timeToSolve: string;
   timestamp: Date;
+  // Enhanced features
+  approaches?: SolutionApproach[];
+  flashcards?: Flashcard[];
+  practiceQuestions?: PracticeQuestion[];
+  isBookmarked?: boolean;
+}
+
+interface SolutionApproach {
+  name: string;
+  description: string;
+  steps: string[];
+  explanation: string;
+}
+
+interface Flashcard {
+  id: string;
+  front: string;
+  back: string;
+  subject: string;
+}
+
+interface PracticeQuestion {
+  id: string;
+  question: string;
+  answer: string;
+  explanation: string;
+  difficulty: 'easy' | 'medium' | 'hard';
 }
 
 interface ChatMessage {
@@ -113,8 +152,50 @@ const InputMethodView: React.FC<{
   const [inputMethod, setInputMethod] = useState<'type' | 'upload' | 'camera' | null>(null);
   const [question, setQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Check for voice support
+  React.useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      setVoiceSupported(true);
+    }
+  }, []);
+
+  const startVoiceInput = () => {
+    if (!voiceSupported) return;
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+    
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setQuestion(prev => prev + ' ' + transcript);
+      setIsListening(false);
+    };
+    
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+    
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+    
+    recognition.start();
+  };
 
   const generateSolution = async (questionText: string) => {
     if (!questionText.trim()) return;
@@ -188,14 +269,22 @@ Note: Keep your API key private and never share it publicly!`,
               4. If the question is from a different subject than ${subject}, still answer it but mention the subject mismatch
               5. Be encouraging and supportive in your tone
               6. Break down complex concepts into simple, digestible parts
+              7. Provide multiple solution approaches when possible
+              8. Generate flashcards and practice questions for learning reinforcement
+              9. Use LaTeX for math equations (inline: $...$, block: $$...$$)
+              10. Use markdown for formatting explanations
               
               Format your response as JSON with these fields:
               - subject: detected subject of the question
-              - answer: the direct answer
-              - explanation: detailed explanation appropriate for grade ${grade}
+              - answer: the direct answer (use LaTeX for math)
+              - explanation: detailed explanation appropriate for grade ${grade} (use markdown)
               - steps: array of step-by-step solution steps
               - confidence: confidence level (0-100)
-              - gradeAppropriate: true/false if content matches grade level`
+              - gradeAppropriate: true/false if content matches grade level
+              - approaches: array of alternative solution methods (optional)
+              - flashcards: array of study cards with front/back content
+              - practiceQuestions: array of related practice problems
+              - timeToSolve: estimated time to solve (e.g., "5 minutes")`
             },
             {
               role: 'user',
@@ -203,7 +292,7 @@ Note: Keep your API key private and never share it publicly!`,
             }
           ],
           temperature: 0.3,
-          max_tokens: 1000
+          max_tokens: 2000
         })
       });
 
@@ -238,8 +327,12 @@ Note: Keep your API key private and never share it publicly!`,
         explanation: parsedResponse.explanation || 'Explanation not available',
         steps: parsedResponse.steps || ['Solution steps not available'],
         confidence: parsedResponse.confidence || 85,
-        timeToSolve: '3.5s',
-        timestamp: new Date()
+        timeToSolve: parsedResponse.timeToSolve || '3.5s',
+        timestamp: new Date(),
+        approaches: parsedResponse.approaches || [],
+        flashcards: parsedResponse.flashcards || [],
+        practiceQuestions: parsedResponse.practiceQuestions || [],
+        isBookmarked: false
       };
 
       onSolutionGenerated(solution);
@@ -267,9 +360,21 @@ Note: Keep your API key private and never share it publicly!`,
   };
 
   const handleFileUpload = async (file: File) => {
+    setOcrError(null);
     if (file.type.startsWith('image/')) {
-      // For images, we'd need OCR - for now, show a placeholder
-      setQuestion('Image uploaded - OCR processing would extract text here');
+      setOcrLoading(true);
+      setQuestion('');
+      try {
+        const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+          logger: m => console.log(m)
+        });
+        setQuestion(text.trim());
+      } catch (err) {
+        setOcrError('Could not extract text from image. Please try a clearer photo.');
+        setQuestion('');
+      } finally {
+        setOcrLoading(false);
+      }
     } else {
       // For text files
       const text = await file.text();
@@ -337,12 +442,27 @@ Note: Keep your API key private and never share it publicly!`,
 
           {inputMethod === 'type' && (
             <div>
-              <textarea
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="Type your homework question here..."
-                className="w-full h-32 bg-gray-700 border border-gray-600 rounded-lg p-4 text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
-              />
+              <div className="relative">
+                <textarea
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="Type your homework question here..."
+                  className="w-full h-32 bg-gray-700 border border-gray-600 rounded-lg p-4 pr-12 text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
+                />
+                {voiceSupported && (
+                  <button
+                    onClick={startVoiceInput}
+                    disabled={isListening}
+                    className="absolute top-2 right-2 p-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors disabled:opacity-50"
+                    title="Voice input"
+                  >
+                    <Mic size={20} className={isListening ? 'text-red-400 animate-pulse' : 'text-gray-300'} />
+                  </button>
+                )}
+              </div>
+              {isListening && (
+                <div className="mt-2 text-green-400 font-bold">Listening... Speak now!</div>
+              )}
               <button
                 onClick={() => generateSolution(question)}
                 disabled={!question.trim() || isLoading}
@@ -373,7 +493,13 @@ Note: Keep your API key private and never share it publicly!`,
                 <p className="text-gray-400">Click to upload a file or drag and drop</p>
                 <p className="text-sm text-gray-500 mt-2">Supports: PDF, DOC, TXT, Images</p>
               </div>
-              {question && (
+              {ocrLoading && (
+                <div className="mt-4 text-green-400 font-bold">Extracting text from image...</div>
+              )}
+              {ocrError && (
+                <div className="mt-4 text-red-400 font-bold">{ocrError}</div>
+              )}
+              {question && !ocrLoading && (
                 <div className="mt-4">
                   <textarea
                     value={question}
@@ -412,7 +538,13 @@ Note: Keep your API key private and never share it publicly!`,
                 <Camera size={48} className="mx-auto mb-4 text-gray-400" />
                 <p className="text-gray-400">Click to take a photo of your homework</p>
               </div>
-              {question && (
+              {ocrLoading && (
+                <div className="mt-4 text-green-400 font-bold">Extracting text from image...</div>
+              )}
+              {ocrError && (
+                <div className="mt-4 text-red-400 font-bold">{ocrError}</div>
+              )}
+              {question && !ocrLoading && (
                 <div className="mt-4">
                   <textarea
                     value={question}
@@ -451,7 +583,14 @@ const SolutionView: React.FC<{
   solution: Solution;
   onNewQuestion: () => void;
   onStartChat: () => void;
-}> = ({ solution, onNewQuestion, onStartChat }) => {
+  onToggleBookmark: (solutionId: string) => void;
+}> = ({ solution, onNewQuestion, onStartChat, onToggleBookmark }) => {
+  const [showApproaches, setShowApproaches] = useState(false);
+  const [showFlashcards, setShowFlashcards] = useState(false);
+  const [showPractice, setShowPractice] = useState(false);
+  const [currentFlashcard, setCurrentFlashcard] = useState(0);
+  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
+
   const copyToClipboard = () => {
     const text = `Question: ${solution.question}\n\nAnswer: ${solution.answer}\n\nExplanation: ${solution.explanation}`;
     navigator.clipboard.writeText(text);
@@ -479,6 +618,17 @@ const SolutionView: React.FC<{
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => onToggleBookmark(solution.id)}
+              className={`p-2 rounded-lg transition-colors ${
+                solution.isBookmarked 
+                  ? 'bg-yellow-600 hover:bg-yellow-700' 
+                  : 'bg-gray-700 hover:bg-gray-600'
+              }`}
+              title={solution.isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+            >
+              <Bookmark size={20} className={solution.isBookmarked ? 'text-yellow-300' : 'text-gray-300'} />
+            </button>
             <button
               onClick={copyToClipboard}
               className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
@@ -511,7 +661,37 @@ const SolutionView: React.FC<{
       <div className="bg-gray-800 rounded-xl p-6 mb-6">
         <h3 className="text-xl font-bold text-green-400 mb-4">ANSWER:</h3>
         <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6">
-          <div className="text-3xl font-bold text-green-400 mb-2">{solution.answer}</div>
+          <div className="text-2xl font-bold text-green-400 mb-2">
+            {solution.answer.includes('$') ? (
+              <ReactMarkdown
+                components={{
+                  // Handle LaTeX inline math
+                  p: ({ children }) => {
+                    const text = children?.toString() || '';
+                    if (text.includes('$')) {
+                      const parts = text.split(/(\$[^$]+\$)/);
+                      return (
+                        <p>
+                          {parts.map((part, index) => {
+                            if (part.startsWith('$') && part.endsWith('$')) {
+                              const math = part.slice(1, -1);
+                              return <InlineMath key={index} math={math} />;
+                            }
+                            return part;
+                          })}
+                        </p>
+                      );
+                    }
+                    return <p>{children}</p>;
+                  }
+                }}
+              >
+                {solution.answer}
+              </ReactMarkdown>
+            ) : (
+              solution.answer
+            )}
+          </div>
         </div>
       </div>
 
@@ -542,9 +722,191 @@ const SolutionView: React.FC<{
       <div className="bg-gray-800 rounded-xl p-6 mb-6">
         <h3 className="text-xl font-bold text-white mb-4">💡 Detailed Explanation</h3>
         <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-          <p className="text-gray-200 leading-relaxed">{solution.explanation}</p>
+          <ReactMarkdown
+            components={{
+              // Handle LaTeX math
+              p: ({ children }) => {
+                const text = children?.toString() || '';
+                if (text.includes('$')) {
+                  const parts = text.split(/(\$[^$]+\$)/);
+                  return (
+                    <p className="text-gray-200 leading-relaxed mb-4">
+                      {parts.map((part, index) => {
+                        if (part.startsWith('$') && part.endsWith('$')) {
+                          const math = part.slice(1, -1);
+                          return <InlineMath key={index} math={math} />;
+                        }
+                        return part;
+                      })}
+                    </p>
+                  );
+                }
+                return <p className="text-gray-200 leading-relaxed mb-4">{children}</p>;
+              },
+              h1: ({ children }) => <h1 className="text-2xl font-bold text-white mb-3">{children}</h1>,
+              h2: ({ children }) => <h2 className="text-xl font-bold text-white mb-2">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-lg font-bold text-white mb-2">{children}</h3>,
+              ul: ({ children }) => <ul className="list-disc list-inside text-gray-200 mb-4">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal list-inside text-gray-200 mb-4">{children}</ol>,
+              li: ({ children }) => <li className="mb-1">{children}</li>,
+              strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+              em: ({ children }) => <em className="italic text-gray-300">{children}</em>,
+              code: ({ children }) => <code className="bg-gray-700 px-2 py-1 rounded text-green-300">{children}</code>
+            }}
+          >
+            {solution.explanation}
+          </ReactMarkdown>
         </div>
       </div>
+
+      {/* Multiple Approaches */}
+      {solution.approaches && solution.approaches.length > 0 && (
+        <div className="bg-gray-800 rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white">🔄 Alternative Approaches</h3>
+            <button 
+              onClick={() => setShowApproaches(!showApproaches)}
+              className="text-green-400 hover:text-green-300 text-sm"
+            >
+              {showApproaches ? '🔗 Hide Approaches' : '🔗 Show Approaches'}
+            </button>
+          </div>
+          
+          {showApproaches && (
+            <div className="space-y-4">
+              {solution.approaches.map((approach, index) => (
+                <div key={index} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                  <h4 className="font-bold text-green-400 mb-2">{approach.name}</h4>
+                  <p className="text-gray-300 mb-3">{approach.description}</p>
+                  <div className="space-y-2">
+                    {approach.steps.map((step, stepIndex) => (
+                      <div key={stepIndex} className="flex gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                          {stepIndex + 1}
+                        </div>
+                        <div className="flex-1 bg-gray-600/50 rounded p-2">
+                          <p className="text-gray-200 text-sm">{step}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded">
+                    <p className="text-gray-200 text-sm">{approach.explanation}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Flashcards */}
+      {solution.flashcards && solution.flashcards.length > 0 && (
+        <div className="bg-gray-800 rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white">📚 Study Flashcards</h3>
+            <button 
+              onClick={() => setShowFlashcards(!showFlashcards)}
+              className="text-green-400 hover:text-green-300 text-sm"
+            >
+              {showFlashcards ? '🔗 Hide Cards' : '🔗 Show Cards'}
+            </button>
+          </div>
+          
+          {showFlashcards && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => {
+                    setCurrentFlashcard(prev => Math.max(0, prev - 1));
+                    setFlashcardFlipped(false);
+                  }}
+                  disabled={currentFlashcard === 0}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50"
+                >
+                  ← Previous
+                </button>
+                <span className="text-gray-300">
+                  {currentFlashcard + 1} of {solution.flashcards.length}
+                </span>
+                <button
+                  onClick={() => {
+                    setCurrentFlashcard(prev => Math.min(solution.flashcards.length - 1, prev + 1));
+                    setFlashcardFlipped(false);
+                  }}
+                  disabled={currentFlashcard === solution.flashcards.length - 1}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50"
+                >
+                  Next →
+                </button>
+              </div>
+              
+              <div 
+                className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-8 cursor-pointer transform transition-transform hover:scale-105"
+                onClick={() => setFlashcardFlipped(!flashcardFlipped)}
+              >
+                <div className="text-center">
+                  <h4 className="text-lg font-bold text-white mb-4">
+                    {flashcardFlipped ? 'Answer' : 'Question'}
+                  </h4>
+                  <div className="text-xl text-gray-200">
+                    {flashcardFlipped 
+                      ? solution.flashcards[currentFlashcard].back
+                      : solution.flashcards[currentFlashcard].front
+                    }
+                  </div>
+                  <p className="text-sm text-gray-400 mt-4">
+                    Click to {flashcardFlipped ? 'see question' : 'see answer'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Practice Questions */}
+      {solution.practiceQuestions && solution.practiceQuestions.length > 0 && (
+        <div className="bg-gray-800 rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white">🎯 Practice Questions</h3>
+            <button 
+              onClick={() => setShowPractice(!showPractice)}
+              className="text-green-400 hover:text-green-300 text-sm"
+            >
+              {showPractice ? '🔗 Hide Questions' : '🔗 Show Questions'}
+            </button>
+          </div>
+          
+          {showPractice && (
+            <div className="space-y-4">
+              {solution.practiceQuestions.map((question, index) => (
+                <div key={index} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                      question.difficulty === 'easy' ? 'bg-green-600 text-white' :
+                      question.difficulty === 'medium' ? 'bg-yellow-600 text-white' :
+                      'bg-red-600 text-white'
+                    }`}>
+                      {question.difficulty.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-gray-200 mb-3 font-medium">{question.question}</p>
+                  <details className="text-sm">
+                    <summary className="cursor-pointer text-green-400 hover:text-green-300">
+                      Show Answer
+                    </summary>
+                    <div className="mt-2 p-3 bg-green-500/10 border border-green-500/30 rounded">
+                      <p className="text-gray-200 font-bold mb-1">Answer: {question.answer}</p>
+                      <p className="text-gray-300">{question.explanation}</p>
+                    </div>
+                  </details>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -560,6 +922,22 @@ const SolutionView: React.FC<{
         >
           💬 Ask Follow-up Questions
         </button>
+        {solution.flashcards && solution.flashcards.length > 0 && (
+          <button
+            onClick={() => setShowFlashcards(!showFlashcards)}
+            className="bg-purple-600 text-white px-8 py-3 rounded-full font-bold hover:bg-purple-700 transition-all"
+          >
+            📚 {showFlashcards ? 'Hide' : 'Show'} Flashcards
+          </button>
+        )}
+        {solution.practiceQuestions && solution.practiceQuestions.length > 0 && (
+          <button
+            onClick={() => setShowPractice(!showPractice)}
+            className="bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition-all"
+          >
+            🎯 {showPractice ? 'Hide' : 'Show'} Practice
+          </button>
+        )}
       </div>
     </div>
   );
@@ -752,6 +1130,8 @@ const HomeworkHelper: React.FC<HomeworkHelperProps> = ({ onBackToHome }) => {
   const [subject, setSubject] = useState<string>('math');
   const [currentSolution, setCurrentSolution] = useState<Solution | null>(null);
   const [recentSolutions, setRecentSolutions] = useState<Solution[]>([]);
+  const [bookmarkedSolutions, setBookmarkedSolutions] = useState<Solution[]>([]);
+  const [showBookmarks, setShowBookmarks] = useState(false);
 
   const handleSetupComplete = (selectedGrade: number, selectedSubject: string) => {
     setGrade(selectedGrade);
@@ -763,6 +1143,25 @@ const HomeworkHelper: React.FC<HomeworkHelperProps> = ({ onBackToHome }) => {
     setCurrentSolution(solution);
     setRecentSolutions(prev => [solution, ...prev.slice(0, 4)]);
     setViewMode('solution');
+  };
+
+  const handleToggleBookmark = (solutionId: string) => {
+    setCurrentSolution(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, isBookmarked: !prev.isBookmarked };
+      
+      if (updated.isBookmarked) {
+        setBookmarkedSolutions(prev => [updated, ...prev]);
+      } else {
+        setBookmarkedSolutions(prev => prev.filter(s => s.id !== solutionId));
+      }
+      
+      return updated;
+    });
+    
+    setRecentSolutions(prev => 
+      prev.map(s => s.id === solutionId ? { ...s, isBookmarked: !s.isBookmarked } : s)
+    );
   };
 
   const handleNewQuestion = () => {
@@ -829,6 +1228,7 @@ const HomeworkHelper: React.FC<HomeworkHelperProps> = ({ onBackToHome }) => {
                 solution={currentSolution}
                 onNewQuestion={handleNewQuestion}
                 onStartChat={handleStartChat}
+                onToggleBookmark={handleToggleBookmark}
               />
             )}
             
@@ -876,10 +1276,51 @@ const HomeworkHelper: React.FC<HomeworkHelperProps> = ({ onBackToHome }) => {
                             <span>{solution.subject}</span>
                             <span>•</span>
                             <span>{solution.confidence}% confidence</span>
+                            {solution.isBookmarked && (
+                              <Bookmark size={12} className="text-yellow-400" />
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {bookmarkedSolutions.length > 0 && (
+                  <div className="mt-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-yellow-400">Bookmarked Solutions</h3>
+                      <button
+                        onClick={() => setShowBookmarks(!showBookmarks)}
+                        className="text-yellow-400 hover:text-yellow-300 text-sm"
+                      >
+                        {showBookmarks ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                    {showBookmarks && (
+                      <div className="space-y-3">
+                        {bookmarkedSolutions.map((solution) => (
+                          <div
+                            key={solution.id}
+                            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 cursor-pointer hover:bg-yellow-500/20 transition-colors"
+                            onClick={() => {
+                              setCurrentSolution(solution);
+                              setViewMode('solution');
+                            }}
+                          >
+                            <div className="text-sm font-medium text-white mb-1 truncate">
+                              {solution.question}
+                            </div>
+                            <div className="text-xs text-gray-400 flex items-center gap-2">
+                              <span>{solution.subject}</span>
+                              <span>•</span>
+                              <span>{solution.confidence}% confidence</span>
+                              <Bookmark size={12} className="text-yellow-400" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
