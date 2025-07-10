@@ -66,6 +66,17 @@ class QuestionGenerator {
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
+    
+    // Log API configuration status
+    if (!apiKey || apiKey === 'your-actual-api-key-here' || apiKey.trim() === '') {
+      console.log('⚠️ OpenAI API not configured - Using fallback questions');
+      console.log('📋 To enable AI questions:');
+      console.log('1. Get API key: https://platform.openai.com/api-keys');
+      console.log('2. Update .env: VITE_REACT_APP_OPENAI_API_KEY=your-real-key');
+      console.log('3. Restart server: Ctrl+C then npm run dev');
+    } else {
+      console.log('✅ OpenAI API configured - Dynamic questions enabled');
+    }
   }
 
   async generateQuestion(request: QuestionRequest): Promise<GeneratedQuestion> {
@@ -470,6 +481,8 @@ Respond in JSON format:
 
   private async makeAPIRequest(prompt: string): Promise<string> {
     try {
+      console.log('🤖 Generating AI question for Grade', request.grade, request.subject, `(${request.difficulty})`);
+      
       const response = await fetch(this.baseURL, {
         method: 'POST',
         headers: {
@@ -494,6 +507,15 @@ Respond in JSON format:
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          console.error('❌ OpenAI API authentication failed. Please check your API key configuration.');
+          console.error('📋 Instructions:');
+          console.error('1. Get your API key from https://platform.openai.com/api-keys');
+          console.error('2. Update your .env file with: VITE_REACT_APP_OPENAI_API_KEY=your-real-key');
+          console.error('3. Restart the development server');
+          throw new Error('OpenAI API authentication failed - Invalid or missing API key');
+        }
+        
         throw new Error(`API request failed with status ${response.status}`);
       }
 
@@ -514,11 +536,203 @@ Respond in JSON format:
       } else if (content.startsWith('```')) {
         content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
-      
       return content;
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
+    }
+  }
+
+  private buildPrompt(request: QuestionRequest): string {
+    const gradeContext = this.getGradeContext(request.grade, request.subject);
+    const difficultyContext = this.getDifficultyContext(request.difficulty);
+    const characterContext = this.getCharacterContext(request.opponentId || 'iron-man');
+    const textbookTopics = this.getTextbookTopics(request.grade, request.subject);
+    const format = request.format || 'catch-mistake';
+    const topic = request.topic || 'a random topic from the list';
+    
+    const formatInstructions = this.getFormatInstructions(format, request.grade, request.subject);
+    
+    return `
+Generate a ${request.difficulty} ${request.subject} problem for grade ${request.grade} students in Battle Mode.
+
+BATTLE MODE CONTEXT: Students need to engage with educational content in various formats.
+- Make questions engaging and grade-appropriate
+- Include realistic scenarios and superhero themes
+- Provide clear explanations and learning opportunities
+
+GRADE ${request.grade} TEXTBOOK TOPICS: ${textbookTopics}
+FOCUS TOPIC: ${topic}
+GRADE CONTEXT: ${gradeContext}
+DIFFICULTY: ${difficultyContext}
+CHARACTER: ${characterContext.character}
+QUESTION FORMAT: ${format.toUpperCase()}
+
+REQUIREMENTS:
+1. Create an exciting story context featuring ${characterContext.character} and their world: ${characterContext.world}
+2. Focus specifically on the topic: ${topic}
+3. Use the ${format} format with clear, grade-appropriate content
+4. Make the question engaging and educational
+5. Use fun, engaging language featuring ${characterContext.character}
+6. Include encouraging explanations that reference the specific topic being tested
+
+AVOID these previous topics: ${request.previousQuestions?.join(', ') || 'none'}
+
+${formatInstructions}
+
+OUTPUT FORMAT (JSON):
+${this.getOutputFormat(format)}
+`;
+  }
+
+  private getFormatInstructions(format: string, grade: number, subject: string): string {
+    switch (format) {
+      case 'multiple-choice':
+        return `
+MULTIPLE CHOICE FORMAT:
+- Create 4 options (A, B, C, D)
+- Only ONE correct answer
+- Make distractors realistic but clearly wrong
+- Include explanations for why each option is correct/incorrect
+- Focus on testing understanding of the specific topic
+- Use superhero scenarios to make it engaging`;
+      
+      case 'true-false':
+        return `
+TRUE/FALSE FORMAT:
+- Create 5-7 true/false statements
+- Mix true and false statements (60% true, 40% false)
+- Make false statements contain common misconceptions
+- Each statement should test understanding of the specific topic
+- Use superhero scenarios to make it engaging
+- Provide explanations for why each statement is true or false`;
+      
+      case 'fill-blank':
+        return `
+FILL-IN-THE-BLANK FORMAT:
+- Create 3-5 blanks in a paragraph or sentence
+- Focus on key vocabulary and concepts from the topic
+- Provide word bank with extra options to increase difficulty
+- Make blanks test understanding, not just memorization
+- Use superhero story context throughout`;
+      
+      case 'matching':
+        return `
+MATCHING FORMAT:
+- Create 5-7 pairs of related items
+- Mix easy and challenging matches
+- Include one extra item to make it more challenging
+- Focus on relationships and connections within the topic
+- Use superhero-themed examples`;
+      
+      case 'ordering':
+        return `
+ORDERING FORMAT:
+- Create 4-6 items that need to be put in correct sequence
+- Could be steps in a process, chronological order, or logical sequence
+- Make the order meaningful to the topic being studied
+- Use superhero scenarios to make it engaging
+- Provide explanations for the correct order`;
+      
+      case 'catch-mistake':
+      default:
+        return `
+CATCH MISTAKE FORMAT:
+- 70% of problems should contain intentional mistakes for students to catch
+- 30% should be completely correct to keep students alert
+- Make mistakes realistic (common student errors, not obvious blunders)
+- Provide 3-4 step solution that either:
+  - Contains ONE realistic mistake (calculation error, wrong formula, logic error)
+  - Is completely correct (to test if students can recognize good work)
+- Make mistakes subtle but catchable by grade-level students
+
+MISTAKE TYPES by difficulty:
+- Easy: Obvious calculation errors, wrong operations, basic concept confusion
+- Normal: Sign errors, unit mistakes, skipped steps, formula misapplication
+- Hard: Formula confusion, logic errors, subtle calculation mistakes, advanced concept errors
+- Expert: Complex reasoning errors, advanced concept misapplication, multi-step logic errors`;
+    }
+  }
+
+  private getOutputFormat(format: string): string {
+    switch (format) {
+      case 'multiple-choice':
+        return `{
+  "question": "Create an engaging question about the specific topic",
+  "topic": "specific topic name",
+  "format": "multiple-choice",
+  "options": [
+    {"id": "A", "text": "Option A", "isCorrect": false, "explanation": "Why this is wrong"},
+    {"id": "B", "text": "Option B", "isCorrect": true, "explanation": "Why this is correct"},
+    {"id": "C", "text": "Option C", "isCorrect": false, "explanation": "Why this is wrong"},
+    {"id": "D", "text": "Option D", "isCorrect": false, "explanation": "Why this is wrong"}
+  ],
+  "correctAnswer": "B",
+  "explanation": "Detailed explanation of the correct answer and why it's right"
+}`;
+      
+      case 'true-false':
+        return `{
+  "question": "Read each statement and determine if it's true or false about the specific topic",
+  "topic": "specific topic name",
+  "format": "true-false",
+  "options": [
+    {"id": "1", "text": "Statement 1", "isCorrect": true, "explanation": "Why this is true"},
+    {"id": "2", "text": "Statement 2", "isCorrect": false, "explanation": "Why this is false"},
+    {"id": "3", "text": "Statement 3", "isCorrect": true, "explanation": "Why this is true"},
+    {"id": "4", "text": "Statement 4", "isCorrect": false, "explanation": "Why this is false"},
+    {"id": "5", "text": "Statement 5", "isCorrect": true, "explanation": "Why this is true"}
+  ],
+  "correctAnswer": "TTFTT",
+  "explanation": "Summary of the key concepts tested"
+}`;
+      
+      case 'fill-blank':
+        return `{
+  "question": "Fill in the blanks using the word bank provided",
+  "topic": "specific topic name",
+  "format": "fill-blank",
+  "blanks": ["word1", "word2", "word3"],
+  "correctAnswer": "word1,word2,word3",
+  "explanation": "Explanation of each blank and why those words are correct"
+}`;
+      
+      case 'matching':
+        return `{
+  "question": "Match each item on the left with its correct pair on the right",
+  "topic": "specific topic name",
+  "format": "matching",
+  "matchingPairs": [
+    {"question": "Item 1", "answer": "Match A"},
+    {"question": "Item 2", "answer": "Match B"},
+    {"question": "Item 3", "answer": "Match C"}
+  ],
+  "correctAnswer": "1A,2B,3C",
+  "explanation": "Explanation of each matching pair and their relationship"
+}`;
+      
+      case 'ordering':
+        return `{
+  "question": "Put the following items in the correct order",
+  "topic": "specific topic name",
+  "format": "ordering",
+  "orderingItems": ["First step", "Second step", "Third step", "Fourth step"],
+  "correctAnswer": "1,2,3,4",
+  "explanation": "Explanation of why this order is correct and the logical sequence"
+}`;
+      
+      case 'catch-mistake':
+      default:
+        return `{
+  "question": "Create a unique question about the specific topic",
+  "topic": "specific topic name",
+  "format": "catch-mistake",
+  "steps": ["Step 1: ...", "Step 2: ...", "Step 3: ..."],
+  "hasError": true,
+  "errorStep": 1,
+  "correctAnswer": 120,
+  "explanation": "Great catch! The character made a mistake with [specific topic]. The correct approach is..."
+}`;
     }
   }
 
