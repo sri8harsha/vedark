@@ -2,13 +2,13 @@
 
 ## OpenAI API Configuration
 
-To enable dynamic, grade-appropriate question generation, you need to configure your OpenAI API key.
+To enable dynamic, grade-appropriate question generation based on user preferences (grade, subject, topic, difficulty), you need to configure your OpenAI API key.
 
 ### Step 1: Get Your OpenAI API Key
 1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
 2. Sign in or create an account
 3. Click "Create new secret key"
-4. Copy the generated API key
+4. Copy the generated API key (it starts with "sk-")
 
 ### Step 2: Configure the API Key
 1. Create a `.env` file in the root directory of your project
@@ -16,13 +16,25 @@ To enable dynamic, grade-appropriate question generation, you need to configure 
    ```
    VITE_REACT_APP_OPENAI_API_KEY=your-actual-api-key-here
    ```
-3. Replace `your-actual-api-key-here` with your real API key
+3. Replace `your-actual-api-key-here` with your real API key (starts with "sk-")
 4. Restart your development server
 
-### Step 3: Verify Configuration
+### Step 3: Important Security Notes
+- Never commit your API key to version control
+- Keep your API key private and secure
+- The `.env` file should be in your `.gitignore`
+- Monitor your API usage at https://platform.openai.com/usage
+
+### Step 4: Verify Configuration
 - Open the browser console (F12)
 - Look for: `✅ OpenAI API configured - Dynamic questions enabled`
 - If you see: `⚠️ OpenAI API not configured - Using fallback questions`, check your `.env` file
+
+### Step 5: Test Question Generation
+1. Go to Battle Mode
+2. Select your grade, subject, and difficulty
+3. Questions should be generated based on your exact preferences
+4. Check the console for generation status messages
 
 ## Current Question Generation Prompts
 

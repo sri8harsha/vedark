@@ -70,12 +70,14 @@ class QuestionGenerator {
     // Log API configuration status
     if (!apiKey || apiKey === 'your-actual-api-key-here' || apiKey.trim() === '') {
       console.log('⚠️ OpenAI API not configured - Using fallback questions');
-      console.log('📋 To enable AI questions:');
+      console.log('📋 To enable dynamic AI questions based on user preferences:');
       console.log('1. Get API key: https://platform.openai.com/api-keys');
       console.log('2. Update .env: VITE_REACT_APP_OPENAI_API_KEY=your-real-key');
       console.log('3. Restart server: Ctrl+C then npm run dev');
+      console.log('4. Your API key should start with "sk-"');
     } else {
-      console.log('✅ OpenAI API configured - Dynamic questions enabled');
+      console.log('✅ OpenAI API configured - Dynamic questions enabled for all preferences');
+      console.log(`🔑 Using API key: ${apiKey.substring(0, 7)}...${apiKey.substring(apiKey.length - 4)}`);
     }
   }
 
