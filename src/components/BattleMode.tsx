@@ -320,38 +320,38 @@ const BattleMode: React.FC<BattleModeProps> = ({ onBackToHome }) => {
     setError(null);
     
     try {
-      const problem = await generateProblem(
-        gameState.selectedGrade,
-        gameState.selectedSubject,
-        gameState.selectedDifficulty
-      );
+    const problem = await generateProblem(
+      gameState.selectedGrade,
+      gameState.selectedSubject,
+      gameState.selectedDifficulty
+    );
 
-      setGameState(prev => ({
-        ...prev,
-        currentProblem: problem,
-        timeLeft: 15,
-        showingSolution: false,
-        gamePhase: 'problem'
-      }));
+    setGameState(prev => ({
+      ...prev,
+      currentProblem: problem,
+      timeLeft: 15,
+      showingSolution: false,
+      gamePhase: 'problem'
+    }));
 
-      // Show opponent reaction
-      if (gameState.selectedOpponent) {
-        const reactions = ['😏 Let\'s see if you can catch this!', '🤔 This one might trick you!', '😈 I\'ve got a sneaky solution!'];
-        setOpponentReaction(reactions[Math.floor(Math.random() * reactions.length)]);
-      }
+    // Show opponent reaction
+    if (gameState.selectedOpponent) {
+      const reactions = ['😏 Let\'s see if you can catch this!', '🤔 This one might trick you!', '😈 I\'ve got a sneaky solution!'];
+      setOpponentReaction(reactions[Math.floor(Math.random() * reactions.length)]);
+    }
 
       // For catch-mistake format, show solution after delay
       // For other formats, go directly to solution phase
       if (problem.format === 'catch-mistake') {
         const solutionDelay = playerProfile.battlesPlayed > 5 ? 1000 : 3000;
-        setTimeout(() => {
-          setGameState(prev => ({
-            ...prev,
-            showingSolution: true,
-            gamePhase: 'solution'
-          }));
-          setOpponentReaction('');
-          startTimer();
+    setTimeout(() => {
+      setGameState(prev => ({
+        ...prev,
+        showingSolution: true,
+        gamePhase: 'solution'
+      }));
+      setOpponentReaction('');
+      startTimer();
         }, solutionDelay);
       } else {
         // For non-catch-mistake formats, go directly to solution phase
@@ -1242,8 +1242,8 @@ const BattleMode: React.FC<BattleModeProps> = ({ onBackToHome }) => {
                         gameState.selectedDifficulty === 'hard' ? 'text-orange-400' :
                         'text-red-400'
                       }`}>
-                        🤖 {gameState.selectedOpponent?.character}'s Solution:
-                      </h3>
+                      🤖 {gameState.selectedOpponent?.character}'s Solution:
+                    </h3>
                       <button
                         onClick={() => {
                           setGameState(prev => ({

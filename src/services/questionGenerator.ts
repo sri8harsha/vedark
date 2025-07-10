@@ -773,7 +773,7 @@ MISTAKE TYPES by difficulty:
   "correctAnswer": 120,
   "explanation": "Great catch! The character made a mistake with [specific topic]. The correct approach is..."
 }`;
-    }
+}
   }
 
   private getGradeContext(grade: number, subject: string): string {
@@ -917,16 +917,16 @@ MISTAKE TYPES by difficulty:
       ],
       'iron-man-math-3': [
         {
-          question: "⚡ Tony Stark's arc reactor has 24 energy cores. He uses 2/3 of them to power his suit. How many cores are left?",
+        question: "⚡ Tony Stark's arc reactor has 24 energy cores. He uses 2/3 of them to power his suit. How many cores are left?",
           steps: ["Step 1: Find 2/3 of 24 cores", "Step 2: 2/3 × 24 = 16 cores used", "Step 3: Cores left = 24 - 16 = 8"],
-          hasError: false,
-          correctAnswer: 8,
-          explanation: "Perfect! Tony has 8 energy cores remaining for his arc reactor."
-        },
+        hasError: false,
+        correctAnswer: 8,
+        explanation: "Perfect! Tony has 8 energy cores remaining for his arc reactor."
+      },
         {
           question: "⚡ Iron Man's suit uses 3 energy units per minute. How many units in 7 minutes?",
           steps: ["Step 1: Units per minute = 3", "Step 2: Time = 7 minutes", "Step 3: Total = 3 × 7 = 21 units"],
-          hasError: false,
+        hasError: false,
           correctAnswer: 21,
           explanation: "Correct! The suit uses 21 energy units in 7 minutes."
         }
@@ -980,17 +980,17 @@ MISTAKE TYPES by difficulty:
 
   async generateQuestionSet(request: QuestionRequest, count: number = 5): Promise<GeneratedQuestion[]> {
     const questions: GeneratedQuestion[] = [];
-    
+
     for (let i = 0; i < count; i++) {
       try {
         const question = await this.generateQuestion(request);
-        questions.push(question);
+      questions.push(question);
       } catch (error) {
         console.error(`Failed to generate question ${i + 1}:`, error);
         questions.push(this.getFallbackQuestion(request));
       }
     }
-    
+
     return questions;
   }
 }
