@@ -171,16 +171,16 @@ const VedarkHomePage: React.FC<VedarkHomePageProps> = ({ onNavigate }) => {
               className="group bg-gradient-to-br from-green-900/30 to-emerald-900/30 rounded-3xl p-8 border border-green-500/20 hover:border-green-400/50 transition-all duration-300 cursor-pointer transform hover:scale-105"
             >
               <div className="text-6xl mb-4 group-hover:animate-bounce">🤝</div>
-              <h3 className="text-2xl font-bold mb-3 text-green-400">Homework Helper</h3>
-              <p className="text-white/70 mb-6">AI tutor that guides without giving answers</p>
+              <h3 className="text-2xl font-bold mb-3 text-green-400">AI Homework Helper</h3>
+              <p className="text-white/70 mb-6">Get instant step-by-step solutions powered by AI</p>
               <ul className="space-y-2 text-sm text-white/60">
-                <li>💡 Smart hints and tips</li>
-                <li>🎯 Step-by-step guidance</li>
-                <li>📊 Progress tracking</li>
-                <li>🎨 Visual explanations</li>
+                <li>📝 Type or upload questions</li>
+                <li>🧠 Advanced AI analysis</li>
+                <li>📚 Step-by-step explanations</li>
+                <li>🎯 Practice problems included</li>
               </ul>
-              <div className="mt-4 text-xs text-green-300 bg-green-900/30 px-2 py-1 rounded-full inline-block">
-                Coming Soon
+              <div className="mt-4 text-xs text-green-300 bg-green-500/20 px-2 py-1 rounded-full inline-block">
+                ✨ Now Available
               </div>
             </div>
 
